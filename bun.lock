@@ -5,23 +5,23 @@
     "": {
       "name": "@knowledgeislands/mcp-kb",
       "dependencies": {
-        "@modelcontextprotocol/sdk": "latest",
-        "smol-toml": "latest",
-        "zod": "latest",
+        "@modelcontextprotocol/sdk": "^1.29.0",
+        "smol-toml": "^1.7.0",
+        "zod": "^4.4.3",
       },
       "devDependencies": {
-        "@biomejs/biome": "latest",
-        "@types/node": "latest",
-        "@vitest/coverage-v8": "latest",
-        "husky": "latest",
-        "knip": "latest",
-        "lint-staged": "latest",
-        "markdownlint-cli2": "latest",
-        "mcporter": "latest",
-        "prettier": "latest",
-        "syncpack": "latest",
-        "typescript": "latest",
-        "vitest": "latest",
+        "@biomejs/biome": "2.5.5",
+        "@types/node": "^26.1.1",
+        "@vitest/coverage-v8": "^4.1.10",
+        "husky": "^9.1.7",
+        "knip": "^6.29.0",
+        "lint-staged": "^17.2.0",
+        "markdownlint-cli2": "^0.23.1",
+        "mcporter": "^0.12.3",
+        "prettier": "^3.9.6",
+        "syncpack": "^15.3.2",
+        "typescript": "^7.0.2",
+        "vitest": "^4.1.10",
       },
     },
   },
@@ -566,7 +566,7 @@
 
     "linkify-it": ["linkify-it@5.0.2", "", { "dependencies": { "uc.micro": "^2.0.0" } }, "sha512-ONTm2jCMAVZjgQa/Fy1kScXsuOoF5NPTsoFBdE1KVIZ2vAh/r9+Bqo+0jINCBYnavTPQZz38QzFTme79ENoN3Q=="],
 
-    "lint-staged": ["lint-staged@17.1.1", "", { "dependencies": { "picomatch": "^4.0.5", "string-argv": "^0.3.2", "tinyexec": "^1.2.4" }, "optionalDependencies": { "yaml": "^2.9.0" }, "bin": { "lint-staged": "bin/lint-staged.js" } }, "sha512-FnHWpSe5cPRtrDG+soOuNdBxb4XQb2gN5EqpEWKdweyqyOfpl4QSjbrz3ilcIf0WXmkiNQGZZRQ23R5YtB3TEw=="],
+    "lint-staged": ["lint-staged@17.2.0", "", { "dependencies": { "picomatch": "^4.0.5", "string-argv": "^0.3.2", "tinyexec": "^1.2.4" }, "optionalDependencies": { "yaml": "^2.9.0" }, "bin": { "lint-staged": "bin/lint-staged.js" } }, "sha512-FchGnFe4i4B1C/a35SPU9bNGPEHSC1+1iV0plLjzBmKVe9klZrlRfSgK6Cw4VeHyqOXbJUXP0vON61uRftNQ0A=="],
 
     "log-symbols": ["log-symbols@7.0.1", "", { "dependencies": { "is-unicode-supported": "^2.0.0", "yoctocolors": "^2.1.1" } }, "sha512-ja1E3yCr9i/0hmBVaM0bfwDjnGy8I/s6PP4DFp+yP+a+mrHO4Rm7DtmnqROTUkHIkqffC84YY7AeqX6oFk0WFg=="],
 

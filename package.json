@@ -20,7 +20,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "husky": "^9.1.7",
     "knip": "^6.29.0",
-    "lint-staged": "^17.1.1",
+    "lint-staged": "^17.2.0",
     "markdownlint-cli2": "^0.23.1",
     "mcporter": "^0.12.3",
     "prettier": "^3.9.6",
