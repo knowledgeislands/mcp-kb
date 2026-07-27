@@ -17,7 +17,6 @@ Scoped and ready to start — the immediate queue, picked up before anything in 
 Understood and roughly scoped but not yet started — worth doing once the **Next** queue clears, ahead of anything still speculative.
 
 - [Foundation Tooling: Add wire-level smoke test](docs/roadmap/foundation-tooling/ROADMAP.md#add-wire-level-smoke-test)
-- [Foundation Tooling: Close remaining coverage gap](docs/roadmap/foundation-tooling/ROADMAP.md#close-remaining-coverage-gap)
 
 ## Waiting for
 

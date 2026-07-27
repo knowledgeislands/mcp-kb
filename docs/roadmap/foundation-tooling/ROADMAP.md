@@ -16,10 +16,6 @@ Scoped and ready to start — the immediate queue, picked up before anything in 
 
 Understood and roughly scoped but not yet started — worth doing once the **Next** queue clears, ahead of anything still speculative.
 
-### Close remaining coverage gap
-
-Close remaining coverage gap to satisfy the 100% vitest threshold (currently 99.4% statements / 97.1% branches). Defensive `??` and rethrow arms in [src/main/notes/index.ts](../../../src/main/notes/index.ts) and [src/utils/audit-log.ts](../../../src/utils/audit-log.ts) need either tests or `/* v8 ignore */` markers — the same pattern m365 already documents.
-
 ### Add wire-level smoke test
 
 Smoke test (`bun run ki:test:smoke`) — boot the built server and verify the wire-level tool surface matches in-process registration. mcp-gmail has the reference implementation (`scripts/smoke.ts` + CI step); kb-fs lacks both.
