@@ -1,7 +1,0 @@
-{
-  "version": 1,
-  "elements": [
-    { "id": "mcp-inspection", "mode": "audit", "phase": "inspect", "entry": "scripts/audit.ts", "reads": ["mcp"], "writes": [] },
-    { "id": "mcp-conform", "mode": "conform", "phase": "write", "entry": "scripts/conform.ts", "reads": ["mcp"], "writes": ["mcp"] }
-  ]
-}

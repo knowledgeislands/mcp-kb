@@ -20,4 +20,4 @@ visibility = "public"   # "public" | "private"
 [ki-mcp]
 
 # The non-KB thematic roadmap and colocated execution-plan standard.
-[ki-repo-roadmap]
+[ki-roadmap]

@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": ["src/mcp-server/index.ts!", "src/config/index.ts!", "src/main/*/index.ts!", "scripts/*.ts"],
   "project": ["src/**/*.ts", "scripts/**/*.ts"],
-  "ignore": ["src/generated/**", ".ki-meta/**", ".claude/skills/**"],
+  "ignore": ["src/generated/**", ".claude/skills/**"],
   "ignoreDependencies": ["syncpack"],
   "ignoreExportsUsedInFile": true,
   "ignoreBinaries": ["printf", "keys"]

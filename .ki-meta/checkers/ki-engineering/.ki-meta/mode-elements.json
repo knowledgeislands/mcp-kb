@@ -1,7 +1,0 @@
-{
-  "version": 1,
-  "elements": [
-    { "id": "toolchain-inspection", "mode": "audit", "phase": "inspect", "entry": "scripts/audit.ts", "reads": ["toolchain"], "writes": [] },
-    { "id": "toolchain-conform", "mode": "conform", "phase": "write", "entry": "scripts/conform.ts", "reads": ["toolchain"], "writes": ["toolchain"] }
-  ]
-}
