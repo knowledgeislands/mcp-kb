@@ -8,32 +8,45 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      KI_CLI_INSTALL_DIR: ${{ runner.temp }}/ki/bin
-      KI_MAN_INSTALL_DIR: ${{ runner.temp }}/ki/man/man1
-      KI_DATA_HOME: ${{ runner.temp }}/ki/data
-      KI_CONFIG_HOME: ${{ runner.temp }}/ki/config
-      KI_CACHE_HOME: ${{ runner.temp }}/ki/cache
-      KI_STATE_HOME: ${{ runner.temp }}/ki/state
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v4
       - run: bun install --frozen-lockfile
-      - name: Install and bootstrap KI
+      - name: Install isolated released KI CLI
+        env:
+          KI_ROOT: ${{ runner.temp }}/ki-fnd-001
         run: |
+          set -euo pipefail
+          export KI_CLI_INSTALL_DIR="$KI_ROOT/bin"
+          export KI_MAN_INSTALL_DIR="$KI_ROOT/share/man/man1"
+          export XDG_DATA_HOME="$KI_ROOT/data"
+          export XDG_CONFIG_HOME="$KI_ROOT/config"
+          export XDG_CACHE_HOME="$KI_ROOT/cache"
+          export XDG_STATE_HOME="$KI_ROOT/state"
+          mkdir -p "$KI_ROOT"
           curl --fail --silent --show-error --location \
             https://raw.githubusercontent.com/knowledgeislands/tools-ki/v0.2.11/install.sh \
-            --output install-ki.sh
-          bash install-ki.sh v0.2.11
-          export PATH="${KI_CLI_INSTALL_DIR}:${PATH}"
-          test "$(command -v ki)" = "${KI_CLI_INSTALL_DIR}/ki"
+            --output "$KI_ROOT/install.sh"
+          bash "$KI_ROOT/install.sh" v0.2.11
+          export PATH="$KI_CLI_INSTALL_DIR:$PATH"
+          test "$(command -v ki)" = "$KI_CLI_INSTALL_DIR/ki"
           test "$(ki --version)" = "0.2.11"
-          ki diag | grep -Eq 'Installation[[:space:]]+regular'
-          ki diag | grep -F "Executable    ${KI_CLI_INSTALL_DIR}/ki"
+          ki diag | tee "$KI_ROOT/ki-diag-before-bootstrap.txt"
+          grep -F "Installation  regular" "$KI_ROOT/ki-diag-before-bootstrap.txt"
+          grep -F "Executable    $KI_CLI_INSTALL_DIR/ki" "$KI_ROOT/ki-diag-before-bootstrap.txt"
           ki bootstrap
-          ki diag | grep -Eq 'Status[[:space:]]+valid'
-          ki harness info knowledgeislands/ki-agentic-harness
-          echo "${KI_CLI_INSTALL_DIR}" >> "$GITHUB_PATH"
+          ki diag | tee "$KI_ROOT/ki-diag.txt"
+          grep -F "Status        valid" "$KI_ROOT/ki-diag.txt"
+          ki harness list | grep -E '^knowledgeislands/ki-agentic-harness[[:space:]]'
+          {
+            echo "KI_CLI_INSTALL_DIR=$KI_CLI_INSTALL_DIR"
+            echo "KI_MAN_INSTALL_DIR=$KI_MAN_INSTALL_DIR"
+            echo "XDG_DATA_HOME=$XDG_DATA_HOME"
+            echo "XDG_CONFIG_HOME=$XDG_CONFIG_HOME"
+            echo "XDG_CACHE_HOME=$XDG_CACHE_HOME"
+            echo "XDG_STATE_HOME=$XDG_STATE_HOME"
+          } >> "$GITHUB_ENV"
+          echo "$KI_CLI_INSTALL_DIR" >> "$GITHUB_PATH"
       - run: ki repo audit --repo .
       - run: bun run test
       - run: bun run test:coverage
