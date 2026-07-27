@@ -124,6 +124,35 @@ describe('readFile', () => {
     expect((result as { isError?: boolean }).isError).toBe(true)
     expect(result.content[0].text).toContain('only available for UTF-8 Markdown')
   })
+
+  it('rejects Markdown parts for a binary (base64) file', async () => {
+    await fs.writeFile(zp('bin.md'), Buffer.from([0xff, 0xfe]))
+    const result = await readFile(cfg, { path: `${ZONE}/bin.md`, part: 'frontmatter' })
+    expect((result as { isError?: boolean }).isError).toBe(true)
+    expect(result.content[0].text).toContain('only available for UTF-8 Markdown')
+  })
+
+  it('returns an error for frontmatter opened but never closed', async () => {
+    await fs.writeFile(zp('malformed.md'), '---\ntitle: Test\n# Body\n', 'utf-8')
+    const result = await readFile(cfg, { path: `${ZONE}/malformed.md`, part: 'body' })
+    expect((result as { isError?: boolean }).isError).toBe(true)
+    expect(result.content[0].text).toContain('Malformed frontmatter')
+  })
+
+  it('reports "(no frontmatter)" for a Markdown file that has none', async () => {
+    await fs.writeFile(zp('plain.md'), '# Body only\n', 'utf-8')
+    const frontmatter = await readFile(cfg, { path: `${ZONE}/plain.md`, part: 'frontmatter' })
+    const body = await readFile(cfg, { path: `${ZONE}/plain.md`, part: 'body' })
+    expect(JSON.parse(frontmatter.content[0].text).content).toBe('(no frontmatter)')
+    expect(JSON.parse(body.content[0].text).content).toBe('# Body only\n')
+  })
+
+  it('returns the whole file unsplit when part is all, even with malformed frontmatter', async () => {
+    await fs.writeFile(zp('malformed.md'), '---\ntitle: Test\n# Body\n', 'utf-8')
+    const result = await readFile(cfg, { path: `${ZONE}/malformed.md` })
+    expect((result as { isError?: boolean }).isError).toBeUndefined()
+    expect(JSON.parse(result.content[0].text).content).toBe('---\ntitle: Test\n# Body\n')
+  })
 })
 
 describe('readFile — root-file allow-list', () => {
@@ -200,6 +229,19 @@ describe('listContent', () => {
     expect((result as { isError?: boolean }).isError).toBe(true)
     expect(result.content[0].text).toContain('outside KB zones')
   })
+
+  it('rejects protected paths inside a zone', async () => {
+    await fs.mkdir(zp('.hidden'), { recursive: true })
+    const result = await listContent(cfg, { path: `${ZONE}/.hidden`, kind: 'files', recursive: false })
+    expect((result as { isError?: boolean }).isError).toBe(true)
+    expect(result.content[0].text).toContain('Path is protected')
+  })
+
+  it('returns error for a missing directory', async () => {
+    const result = await listContent(cfg, { path: `${ZONE}/nope`, kind: 'files', recursive: false })
+    expect((result as { isError?: boolean }).isError).toBe(true)
+    expect(result.content[0].text).toContain('Directory not found')
+  })
 })
 
 describe('listFiles', () => {
@@ -222,6 +264,16 @@ describe('listFiles', () => {
     const parsed = JSON.parse(result.content[0].text)
     expect(parsed.count).toBe(2)
     expect(parsed.files.sort()).toEqual([`${ZONE}/a.txt`, `${ZONE}/sub/b.txt`])
+  })
+
+  it('skips protected dotfiles and dotdirs when walking (shared.ts protected-entry skip)', async () => {
+    await fs.writeFile(zp('a.txt'), 'a', 'utf-8')
+    await fs.writeFile(zp('.secret.txt'), 'secret', 'utf-8')
+    await fs.mkdir(zp('.git'), { recursive: true })
+    await fs.writeFile(zp('.git', 'config'), 'nope', 'utf-8')
+    const result = await listFiles(cfg, { path: ZONE, recursive: true })
+    const parsed = JSON.parse(result.content[0].text)
+    expect(parsed.files).toEqual([`${ZONE}/a.txt`])
   })
 
   it('filters by extension', async () => {

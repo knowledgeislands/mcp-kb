@@ -149,6 +149,27 @@ describe('loadConfig', () => {
       fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
     })
 
+    it('rejects every malformed shape of a root_file_allowlist entry', () => {
+      // One case per guard arm in isRootFileAllowlistPath: empty, untrimmed, absolute,
+      // home-relative, backslash, NUL, empty segment, and a "." segment.
+      const bad = ['""', '" README.md"', '"/etc/passwd"', '"~/secrets.md"', '"a\\\\b.md"', '"a\\u0000b.md"', '"a//b.md"', '"./README.md"']
+      for (const entry of bad) {
+        const toml = `[knowledgeislands-kb]\nroot_file_allowlist = [${entry}]\n`
+        fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
+        expect(() => loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT }), `entry ${entry}`).toThrow(/root_file_allowlist must be an array/)
+      }
+      fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
+    })
+
+    it('rejects a root_file_allowlist that is not an array of strings', () => {
+      for (const value of ['"README.md"', '[42]']) {
+        const toml = `[knowledgeislands-kb]\nroot_file_allowlist = ${value}\n`
+        fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
+        expect(() => loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT }), `value ${value}`).toThrow(/root_file_allowlist must be an array/)
+      }
+      fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
+    })
+
     it('throws on a malformed .ki-config.toml (TOML parse error branch, lines 155-161)', () => {
       fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), '[[invalid\n', 'utf-8')
       expect(() => loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT })).toThrow(/.ki-config.toml parse error/)
