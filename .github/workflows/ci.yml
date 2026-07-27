@@ -22,12 +22,12 @@ jobs:
       - name: Install and bootstrap KI
         run: |
           curl --fail --silent --show-error --location \
-            https://raw.githubusercontent.com/knowledgeislands/tools-ki/v0.2.10/install.sh \
+            https://raw.githubusercontent.com/knowledgeislands/tools-ki/v0.2.11/install.sh \
             --output install-ki.sh
-          bash install-ki.sh v0.2.10
+          bash install-ki.sh v0.2.11
           export PATH="${KI_CLI_INSTALL_DIR}:${PATH}"
           test "$(command -v ki)" = "${KI_CLI_INSTALL_DIR}/ki"
-          test "$(ki --version)" = "0.2.10"
+          test "$(ki --version)" = "0.2.11"
           ki diag | grep -Eq 'Installation[[:space:]]+regular'
           ki diag | grep -F "Executable    ${KI_CLI_INSTALL_DIR}/ki"
           ki bootstrap
