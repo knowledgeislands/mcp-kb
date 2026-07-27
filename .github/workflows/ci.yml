@@ -8,11 +8,33 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      KI_CLI_INSTALL_DIR: ${{ runner.temp }}/ki/bin
+      KI_MAN_INSTALL_DIR: ${{ runner.temp }}/ki/man/man1
+      KI_DATA_HOME: ${{ runner.temp }}/ki/data
+      KI_CONFIG_HOME: ${{ runner.temp }}/ki/config
+      KI_CACHE_HOME: ${{ runner.temp }}/ki/cache
+      KI_STATE_HOME: ${{ runner.temp }}/ki/state
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v4
       - run: bun install --frozen-lockfile
-      - run: ki repo audit
+      - name: Install and bootstrap KI
+        run: |
+          curl --fail --silent --show-error --location \
+            https://raw.githubusercontent.com/knowledgeislands/tools-ki/v0.2.10/install.sh \
+            --output install-ki.sh
+          bash install-ki.sh v0.2.10
+          export PATH="${KI_CLI_INSTALL_DIR}:${PATH}"
+          test "$(command -v ki)" = "${KI_CLI_INSTALL_DIR}/ki"
+          test "$(ki --version)" = "0.2.10"
+          ki diag | grep -Eq 'Installation[[:space:]]+regular'
+          ki diag | grep -F "Executable    ${KI_CLI_INSTALL_DIR}/ki"
+          ki bootstrap
+          ki diag | grep -Eq 'Status[[:space:]]+valid'
+          ki harness info knowledgeislands/ki-agentic-harness
+          echo "${KI_CLI_INSTALL_DIR}" >> "$GITHUB_PATH"
+      - run: ki repo audit --repo .
       - run: bun run test
       - run: bun run test:coverage
       - name: Upload coverage report
