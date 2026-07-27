@@ -21,3 +21,11 @@ visibility = "public"   # "public" | "private"
 
 # The non-KB thematic roadmap and colocated execution-plan standard.
 [ki-roadmap]
+
+[ki-tokenomics]
+
+[ki-housekeeping-claude]
+
+[ki-tokenomics-claude]
+
+[ki-tokenomics-codex]
