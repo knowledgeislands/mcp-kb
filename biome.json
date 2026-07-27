@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["src/**", "*.ts", "*.json", "!src/generated", "!.claude/skills"],
+    "includes": ["src/**", "*.ts", "*.json", "!src/generated", "!.claude/skills", "!.agents/skills"],
     "ignoreUnknown": true
   },
   "formatter": {
