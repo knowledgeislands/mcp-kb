@@ -17,7 +17,7 @@ import { randomUUID } from 'node:crypto'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { z } from 'zod'
-import type { Config } from '../../config/index.js'
+import type { KnowledgeBase } from '../../config/index.js'
 import { isProtectedPath } from '../../utils/protected.js'
 import { assertRealPathWithinRoot, isNodeError, resolveWithinRoot } from '../../utils/utils.js'
 import { isInScope, outOfScopeError } from '../../utils/zones.js'
@@ -151,18 +151,18 @@ const splitFrontmatter = (content: string): FrontmatterSplit => {
   return { frontmatter: null, body: content, malformed: true }
 }
 
-export const readFile = async (cfg: Config, { path: filePath, part = 'all' }: { path: string; part?: ReadPart }): Promise<ReadFileResult> => {
+export const readFile = async (base: KnowledgeBase, { path: filePath, part = 'all' }: { path: string; part?: ReadPart }): Promise<ReadFileResult> => {
   try {
-    const absPath = resolveWithinRoot(cfg.rootPath, filePath)
-    const rel = relativeFromRoot(cfg.rootPath, absPath).split(path.sep).join('/')
-    const isAllowlistedRootFile = filePath.replaceAll('\\', '/') === rel && cfg.rootFileAllowlist.includes(rel)
-    if (!isInScope(rel, cfg.zones) && !isAllowlistedRootFile) {
-      throw new Error(`${outOfScopeError(cfg.zones)} Root-level and named near-root files must exactly match root_file_allowlist.`)
+    const absPath = resolveWithinRoot(base.rootPath, filePath)
+    const rel = relativeFromRoot(base.rootPath, absPath).split(path.sep).join('/')
+    const isAllowlistedRootFile = filePath.replaceAll('\\', '/') === rel && base.rootFileAllowlist.includes(rel)
+    if (!isInScope(rel, base.zones) && !isAllowlistedRootFile) {
+      throw new Error(`${outOfScopeError(base.zones)} Root-level and named near-root files must exactly match root_file_allowlist.`)
     }
     if (isProtectedPath(rel) && !isAllowlistedRootFile) {
       throw new Error(`Path is protected: "${filePath}"`)
     }
-    await assertRealPathWithinRoot(cfg.rootPath, absPath)
+    await assertRealPathWithinRoot(base.rootPath, absPath)
     const stat = await fs.stat(absPath)
     if (!stat.isFile()) {
       throw new Error(`Not a file: "${filePath}"`)
@@ -203,50 +203,50 @@ export const readFile = async (cfg: Config, { path: filePath, part = 'all' }: { 
 }
 
 export const listContent = async (
-  cfg: Config,
+  base: KnowledgeBase,
   { path: dirPath, kind, recursive, ext }: { path: string; kind: ListKind; recursive: boolean; ext?: string }
 ): Promise<ListContentResult> => {
-  const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
-  const rel = relativeFromRoot(cfg.rootPath, absDir)
-  if (!isInScope(rel, cfg.zones)) {
-    throw new Error(outOfScopeError(cfg.zones))
+  const absDir = resolveWithinRoot(base.rootPath, dirPath)
+  const rel = relativeFromRoot(base.rootPath, absDir)
+  if (!isInScope(rel, base.zones)) {
+    throw new Error(outOfScopeError(base.zones))
   }
   if (isProtectedPath(rel)) {
     throw new Error(`Path is protected: "${dirPath}"`)
   }
-  await assertRealPathWithinRoot(cfg.rootPath, absDir)
+  await assertRealPathWithinRoot(base.rootPath, absDir)
   const paths =
     kind === 'files'
-      ? await collectFiles(cfg.rootPath, absDir, recursive, ext ?? null)
+      ? await collectFiles(base.rootPath, absDir, recursive, ext ?? null)
       : kind === 'folders'
-        ? await collectFolders(cfg.rootPath, absDir, recursive)
-        : await collectNotes(cfg.rootPath, absDir, recursive)
-  const entries = paths.map((entry) => path.relative(cfg.rootPath, entry))
+        ? await collectFolders(base.rootPath, absDir, recursive)
+        : await collectNotes(base.rootPath, absDir, recursive)
+  const entries = paths.map((entry) => path.relative(base.rootPath, entry))
   return { path: dirPath, kind, recursive, ext: kind === 'files' ? (ext ?? null) : null, count: entries.length, entries }
 }
 
 export const listFiles = async (
-  cfg: Config,
+  base: KnowledgeBase,
   { path: dirPath, recursive, ext }: { path: string; recursive: boolean; ext?: string }
 ): Promise<ListFilesResult> => {
-  const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
-  const rel = relativeFromRoot(cfg.rootPath, absDir)
-  if (rel && !isInScope(rel, cfg.zones)) {
-    throw new Error(outOfScopeError(cfg.zones))
+  const absDir = resolveWithinRoot(base.rootPath, dirPath)
+  const rel = relativeFromRoot(base.rootPath, absDir)
+  if (rel && !isInScope(rel, base.zones)) {
+    throw new Error(outOfScopeError(base.zones))
   }
   if (isProtectedPath(rel)) {
     throw new Error(`Path is protected: "${dirPath}"`)
   }
-  await assertRealPathWithinRoot(cfg.rootPath, absDir)
-  const files = await collectFiles(cfg.rootPath, absDir, recursive, ext ?? null)
-  const relative = files.map((p) => path.relative(cfg.rootPath, p))
+  await assertRealPathWithinRoot(base.rootPath, absDir)
+  const files = await collectFiles(base.rootPath, absDir, recursive, ext ?? null)
+  const relative = files.map((p) => path.relative(base.rootPath, p))
   return { path: dirPath, recursive, ext: ext ?? null, count: relative.length, files: relative }
 }
 
 export type FileEncoding = 'utf-8' | 'base64'
 
 export const writeFile = async (
-  cfg: Config,
+  base: KnowledgeBase,
   {
     path: filePath,
     content,
@@ -262,15 +262,15 @@ export const writeFile = async (
   }
 ): Promise<WriteFileResult> => {
   try {
-    const absPath = resolveWithinRoot(cfg.rootPath, filePath)
-    const rel = relativeFromRoot(cfg.rootPath, absPath)
-    if (!isInScope(rel, cfg.zones)) {
-      throw new Error(outOfScopeError(cfg.zones))
+    const absPath = resolveWithinRoot(base.rootPath, filePath)
+    const rel = relativeFromRoot(base.rootPath, absPath)
+    if (!isInScope(rel, base.zones)) {
+      throw new Error(outOfScopeError(base.zones))
     }
     if (isProtectedPath(rel)) {
       throw new Error(`Path is protected: "${filePath}"`)
     }
-    await assertRealPathWithinRoot(cfg.rootPath, absPath)
+    await assertRealPathWithinRoot(base.rootPath, absPath)
     const buf = encoding === 'base64' ? Buffer.from(content, 'base64') : Buffer.from(content, 'utf-8')
     const bytes = buf.byteLength
     if (dry_run) {
@@ -302,17 +302,20 @@ export const writeFile = async (
   }
 }
 
-export const renameFile = async (cfg: Config, { from, to, create_dirs }: { from: string; to: string; create_dirs: boolean }): Promise<RenameFileResult> => {
+export const renameFile = async (
+  base: KnowledgeBase,
+  { from, to, create_dirs }: { from: string; to: string; create_dirs: boolean }
+): Promise<RenameFileResult> => {
   try {
-    const absFrom = resolveWithinRoot(cfg.rootPath, from)
-    const absTo = resolveWithinRoot(cfg.rootPath, to)
-    const relFrom = relativeFromRoot(cfg.rootPath, absFrom)
-    const relTo = relativeFromRoot(cfg.rootPath, absTo)
-    if (!isInScope(relFrom, cfg.zones)) {
-      throw new Error(outOfScopeError(cfg.zones))
+    const absFrom = resolveWithinRoot(base.rootPath, from)
+    const absTo = resolveWithinRoot(base.rootPath, to)
+    const relFrom = relativeFromRoot(base.rootPath, absFrom)
+    const relTo = relativeFromRoot(base.rootPath, absTo)
+    if (!isInScope(relFrom, base.zones)) {
+      throw new Error(outOfScopeError(base.zones))
     }
-    if (!isInScope(relTo, cfg.zones)) {
-      throw new Error(outOfScopeError(cfg.zones))
+    if (!isInScope(relTo, base.zones)) {
+      throw new Error(outOfScopeError(base.zones))
     }
     if (isProtectedPath(relFrom)) {
       throw new Error(`Path is protected: "${from}"`)
@@ -323,12 +326,12 @@ export const renameFile = async (cfg: Config, { from, to, create_dirs }: { from:
     if (absFrom === absTo) {
       throw new Error(`Source and destination are the same: "${from}"`)
     }
-    await assertRealPathWithinRoot(cfg.rootPath, absFrom)
+    await assertRealPathWithinRoot(base.rootPath, absFrom)
     const fromStat = await fs.stat(absFrom)
     if (!fromStat.isFile()) {
       throw new Error(`Not a file: "${from}"`)
     }
-    await assertRealPathWithinRoot(cfg.rootPath, absTo)
+    await assertRealPathWithinRoot(base.rootPath, absTo)
     if (create_dirs) {
       await fs.mkdir(path.dirname(absTo), { recursive: true })
     }
@@ -352,17 +355,17 @@ export const renameFile = async (cfg: Config, { from, to, create_dirs }: { from:
   }
 }
 
-export const deleteFile = async (cfg: Config, { path: filePath, dry_run }: { path: string; dry_run: boolean }): Promise<DeleteFileResult> => {
+export const deleteFile = async (base: KnowledgeBase, { path: filePath, dry_run }: { path: string; dry_run: boolean }): Promise<DeleteFileResult> => {
   try {
-    const absPath = resolveWithinRoot(cfg.rootPath, filePath)
-    const rel = relativeFromRoot(cfg.rootPath, absPath)
-    if (!isInScope(rel, cfg.zones)) {
-      throw new Error(outOfScopeError(cfg.zones))
+    const absPath = resolveWithinRoot(base.rootPath, filePath)
+    const rel = relativeFromRoot(base.rootPath, absPath)
+    if (!isInScope(rel, base.zones)) {
+      throw new Error(outOfScopeError(base.zones))
     }
     if (isProtectedPath(rel)) {
       throw new Error(`Path is protected: "${filePath}"`)
     }
-    await assertRealPathWithinRoot(cfg.rootPath, absPath)
+    await assertRealPathWithinRoot(base.rootPath, absPath)
     const stat = await fs.stat(absPath)
     if (!stat.isFile()) {
       throw new Error(`Not a file: "${filePath}"`)

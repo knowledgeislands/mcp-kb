@@ -2,18 +2,14 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { Config } from '../../config/index.js'
+import type { KnowledgeBase } from '../../config/index.js'
 import { kbConfigResultSchema, readKbConfig } from './index.js'
 
 const ROOT_PATH = path.join(os.tmpdir(), 'knowledgeislands-tests', `config-${process.pid}`)
 
-const cfg = (overrides: Partial<Config> = {}): Config => ({
+const base = (overrides: Partial<KnowledgeBase> = {}): KnowledgeBase => ({
+  alias: 'primary',
   rootPath: ROOT_PATH,
-  accessLevel: 'read',
-  auditLogMode: 'off',
-  auditLogPath: path.join(ROOT_PATH, '.audit.jsonl'),
-  auditLogMaxBytes: 0,
-  auditLogKeep: 0,
   zones: {
     Calendar: 'Calendar',
     Pillars: 'Pillars',
@@ -38,7 +34,7 @@ afterAll(async () => {
 
 describe('readKbConfig', () => {
   it('returns default zones when kiConfigRaw is null', () => {
-    const result = readKbConfig(cfg())
+    const result = readKbConfig(base(), [base()])
     const parsed = result
     expect(parsed.zones).toEqual({
       Calendar: 'Calendar',
@@ -56,7 +52,7 @@ describe('readKbConfig', () => {
   it('returns kiConfigPresent: true and raw content when kiConfigRaw is set', () => {
     const raw = '[knowledgeislands-kb]\n[knowledgeislands-kb.zones]\nCalendar = "Cal"\n'
     const result = readKbConfig(
-      cfg({
+      base({
         kiConfigRaw: raw,
         zones: {
           Calendar: 'Cal',
@@ -67,7 +63,8 @@ describe('readKbConfig', () => {
           inbound: '+',
           outbound: '-'
         }
-      })
+      }),
+      [base()]
     )
     const parsed = result
     expect(parsed.kiConfigPresent).toBe(true)
@@ -79,12 +76,12 @@ describe('readKbConfig', () => {
     // The schema is what the tool advertises as `outputSchema` and what the
     // handler emits as `structuredContent`; parsing here is what stops the two
     // from drifting apart.
-    expect(() => kbConfigResultSchema.parse(readKbConfig(cfg()))).not.toThrow()
+    expect(() => kbConfigResultSchema.parse(readKbConfig(base(), [base()]))).not.toThrow()
   })
 
   it('exposes staging areas inbound and outbound separately from zones', () => {
     const result = readKbConfig(
-      cfg({
+      base({
         zones: {
           Calendar: 'Calendar',
           Pillars: 'Pillars',
@@ -94,7 +91,8 @@ describe('readKbConfig', () => {
           inbound: 'inbox',
           outbound: 'outbox'
         }
-      })
+      }),
+      [base()]
     )
     const parsed = result
     expect(parsed.staging.inbound).toBe('inbox')
@@ -107,7 +105,7 @@ describe('readKbConfig', () => {
   })
 
   it('includes the exact root-file allow-list separately from zones', () => {
-    const result = readKbConfig(cfg({ rootFileAllowlist: ['README.md', '.github/copilot-instructions.md'] }))
+    const result = readKbConfig(base({ rootFileAllowlist: ['README.md', '.github/copilot-instructions.md'] }), [base()])
     const parsed = result
     expect(parsed.rootFileAllowlist).toEqual(['README.md', '.github/copilot-instructions.md'])
   })

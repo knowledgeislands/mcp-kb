@@ -13,20 +13,16 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import type { Config } from '../../config/index.js'
+import type { KnowledgeBase } from '../../config/index.js'
 import { readEntries } from '../shared.js'
 import { createFolder, deleteNote, listNotes, renameNote, writeNote } from './index.js'
 
 const ROOT_PATH = path.join(os.tmpdir(), 'knowledgeislands-tests', `notes-gaps-${process.pid}`)
 const ZONE = 'Pillars'
 const zp = (...parts: string[]) => path.join(ROOT_PATH, ZONE, ...parts)
-const cfg: Config = {
+const base: KnowledgeBase = {
+  alias: 'notes-gaps-kb',
   rootPath: ROOT_PATH,
-  accessLevel: 'destructive',
-  auditLogMode: 'off',
-  auditLogPath: path.join(ROOT_PATH, '.audit.jsonl'),
-  auditLogMaxBytes: 0,
-  auditLogKeep: 0,
   zones: {
     Calendar: 'Calendar',
     Pillars: 'Pillars',
@@ -57,42 +53,42 @@ beforeEach(async () => {
 describe('readNote — non-.md path rejection (line 47)', () => {
   it('rejects a .txt path with "Notes must end in .md"', async () => {
     const { readNote } = await import('./index.js')
-    await expect(readNote(cfg, { path: `${ZONE}/note.txt` })).rejects.toThrow('Notes must end in ".md"')
+    await expect(readNote(base, { path: `${ZONE}/note.txt` })).rejects.toThrow('Notes must end in ".md"')
   })
 })
 
 describe('listNotes — protected path check (line 87)', () => {
   it('returns "Path is protected" for a dotdir path', async () => {
-    await expect(listNotes(cfg, { path: `${ZONE}/.obsidian`, recursive: false })).rejects.toThrow('Path is protected')
+    await expect(listNotes(base, { path: `${ZONE}/.obsidian`, recursive: false })).rejects.toThrow('Path is protected')
   })
 })
 
 describe('listFolders — protected path check (line 113)', () => {
   it('returns "Path is protected" for a dotdir path', async () => {
     const { listFolders } = await import('./index.js')
-    await expect(listFolders(cfg, { path: `${ZONE}/.obsidian`, recursive: false })).rejects.toThrow('Path is protected')
+    await expect(listFolders(base, { path: `${ZONE}/.obsidian`, recursive: false })).rejects.toThrow('Path is protected')
   })
 })
 
 describe('renameNote — non-.md from path (line 133)', () => {
   it('rejects a .txt from path with "Notes must end in .md"', async () => {
-    await expect(renameNote(cfg, { from: `${ZONE}/note.txt`, to: `${ZONE}/note.md`, create_dirs: false })).rejects.toThrow('Notes must end in ".md"')
+    await expect(renameNote(base, { from: `${ZONE}/note.txt`, to: `${ZONE}/note.md`, create_dirs: false })).rejects.toThrow('Notes must end in ".md"')
   })
 })
 
 describe('renameNote — from path outside zone (line 144)', () => {
   it('returns out-of-scope error when from is outside zones', async () => {
-    await expect(renameNote(cfg, { from: 'UnknownZone/src.md', to: `${ZONE}/dst.md`, create_dirs: false })).rejects.toThrow('outside KB zones')
+    await expect(renameNote(base, { from: 'UnknownZone/src.md', to: `${ZONE}/dst.md`, create_dirs: false })).rejects.toThrow('outside KB zones')
   })
 })
 
 describe('writeNote — non-.md path rejection (line 266)', () => {
   it('rejects a .txt path with "Notes must end in .md"', async () => {
-    await expect(writeNote(cfg, { path: `${ZONE}/note.txt`, content: 'x', create_dirs: false, dry_run: false })).rejects.toThrow('Notes must end in ".md"')
+    await expect(writeNote(base, { path: `${ZONE}/note.txt`, content: 'x', create_dirs: false, dry_run: false })).rejects.toThrow('Notes must end in ".md"')
   })
 
   it('rejects a path with no extension', async () => {
-    await expect(writeNote(cfg, { path: `${ZONE}/README`, content: 'x', create_dirs: false, dry_run: false })).rejects.toThrow('Notes must end in ".md"')
+    await expect(writeNote(base, { path: `${ZONE}/README`, content: 'x', create_dirs: false, dry_run: false })).rejects.toThrow('Notes must end in ".md"')
   })
 })
 
@@ -101,46 +97,46 @@ describe('deleteNote — directory with .md extension (line 204)', () => {
     // Create a directory whose name ends in .md — the protected-path guard allows
     // it (not a dotfile), but stat().isFile() is false, so we hit the error branch.
     await fs.mkdir(zp('dir.md'), { recursive: true })
-    await expect(deleteNote(cfg, { path: `${ZONE}/dir.md`, dry_run: false })).rejects.toThrow('Not a note file')
+    await expect(deleteNote(base, { path: `${ZONE}/dir.md`, dry_run: false })).rejects.toThrow('Not a note file')
   })
 })
 
 describe('createFolder — protected path (line 234)', () => {
   it('rejects a dotdir path within a zone', async () => {
-    await expect(createFolder(cfg, { path: `${ZONE}/.obsidian` })).rejects.toThrow('Path is protected')
+    await expect(createFolder(base, { path: `${ZONE}/.obsidian` })).rejects.toThrow('Path is protected')
   })
 })
 
 describe('createFolder — path exists as file (line 241)', () => {
   it('returns "Path exists as a file, not a folder" when a regular file occupies the path', async () => {
     await fs.writeFile(zp('occupied'), 'x', 'utf-8')
-    await expect(createFolder(cfg, { path: `${ZONE}/occupied` })).rejects.toThrow('Path exists as a file, not a folder')
+    await expect(createFolder(base, { path: `${ZONE}/occupied` })).rejects.toThrow('Path exists as a file, not a folder')
   })
 })
 
 describe('deleteNote — out-of-scope path (line 196)', () => {
   it('returns out-of-scope error for a path in an unknown zone', async () => {
-    await expect(deleteNote(cfg, { path: 'UnknownZone/note.md', dry_run: false })).rejects.toThrow('outside KB zones')
+    await expect(deleteNote(base, { path: 'UnknownZone/note.md', dry_run: false })).rejects.toThrow('outside KB zones')
   })
 })
 
 describe('renameNote — destination outside zone (line 147)', () => {
   it('returns out-of-scope error when the destination is outside zones', async () => {
     await fs.writeFile(zp('src.md'), 'x', 'utf-8')
-    await expect(renameNote(cfg, { from: `${ZONE}/src.md`, to: 'UnknownZone/dst.md', create_dirs: true })).rejects.toThrow('outside KB zones')
+    await expect(renameNote(base, { from: `${ZONE}/src.md`, to: 'UnknownZone/dst.md', create_dirs: true })).rejects.toThrow('outside KB zones')
   })
 })
 
 describe('renameNote — protected from path (line 150)', () => {
   it('returns "Path is protected" for a dotfile source', async () => {
-    await expect(renameNote(cfg, { from: `${ZONE}/.secret.md`, to: `${ZONE}/dst.md`, create_dirs: true })).rejects.toThrow('Path is protected')
+    await expect(renameNote(base, { from: `${ZONE}/.secret.md`, to: `${ZONE}/dst.md`, create_dirs: true })).rejects.toThrow('Path is protected')
   })
 })
 
 describe('renameNote — protected path (line 153)', () => {
   it('returns "Path is protected" for a dotfile destination', async () => {
     await fs.writeFile(zp('src.md'), 'x', 'utf-8')
-    await expect(renameNote(cfg, { from: `${ZONE}/src.md`, to: `${ZONE}/.dst.md`, create_dirs: true })).rejects.toThrow('Path is protected')
+    await expect(renameNote(base, { from: `${ZONE}/src.md`, to: `${ZONE}/.dst.md`, create_dirs: true })).rejects.toThrow('Path is protected')
   })
 })
 
@@ -149,7 +145,7 @@ describe('shared.collectNotes — isProtectedPath continue branch (line 33)', ()
     // Write a dotfile inside the zone — collectNotes should skip it via continue (line 33)
     await fs.writeFile(zp('.hidden.md'), 'secret', 'utf-8')
     await fs.writeFile(zp('visible.md'), 'public', 'utf-8')
-    const result = await listNotes(cfg, { path: ZONE, recursive: false })
+    const result = await listNotes(base, { path: ZONE, recursive: false })
     expect(result.notes).toEqual([`${ZONE}/visible.md`])
   })
 })

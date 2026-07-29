@@ -1,39 +1,166 @@
 /**
  * loadConfig reads from the env object it's given, so tests pass explicit envs
- * (no process.env mutation, no module-reset dance). MCP_KI_KB_FS_ROOT_PATH is
- * required, so every load supplies it unless the test is asserting the guard.
+ * (no process.env mutation, no module-reset dance). The knowledge-base
+ * declaration is required and fully validated at load time, so every load
+ * supplies a real directory unless the test is asserting a guard.
  */
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { isInScope, outOfScopeError } from '../utils/zones.js'
-import { loadConfig } from './index.js'
+import { type Config, KNOWLEDGE_BASES_ENV_VAR, knowledgeBaseAliases, loadConfig, selectKnowledgeBase } from './index.js'
 
 const TOML_ROOT = path.join(os.tmpdir(), 'knowledgeislands-tests', `config-toml-${process.pid}`)
+const SECOND_ROOT = path.join(os.tmpdir(), 'knowledgeislands-tests', `config-second-${process.pid}`)
 
 beforeAll(() => {
   fs.mkdirSync(TOML_ROOT, { recursive: true })
+  fs.mkdirSync(SECOND_ROOT, { recursive: true })
 })
 
 afterAll(() => {
   fs.rmSync(TOML_ROOT, { recursive: true, force: true })
+  fs.rmSync(SECOND_ROOT, { recursive: true, force: true })
 })
 
-const load = (extra: Record<string, string> = {}) => loadConfig({ MCP_KI_KB_FS_ROOT_PATH: '/tmp/explicit-kb', ...extra })
+/** Declare one or more bases the way an install's `env` block would. */
+const declare = (bases: Record<string, string>): Record<string, string> => ({ [KNOWLEDGE_BASES_ENV_VAR]: JSON.stringify(bases) })
+
+const load = (extra: Record<string, string> = {}) => loadConfig({ ...declare({ primary: TOML_ROOT }), ...extra })
+
+/** The base under the default single-alias declaration. */
+const primary = (cfg: Config) => selectKnowledgeBase(cfg, 'primary')
+
+const loadDeclared = (bases: Record<string, string>) => loadConfig(declare(bases))
+
+/** Raw (possibly malformed) declaration text, bypassing JSON.stringify. */
+const loadRaw = (raw: string) => () => loadConfig({ [KNOWLEDGE_BASES_ENV_VAR]: raw })
 
 describe('loadConfig', () => {
-  describe('rootPath (MCP_KI_KB_FS_ROOT_PATH)', () => {
-    it('expands a leading ~/ to the user home directory', () => {
-      expect(load({ MCP_KI_KB_FS_ROOT_PATH: '~/some-kb' }).rootPath).toBe(path.resolve(path.join(os.homedir(), 'some-kb')))
+  describe(`knowledge-base declaration (${KNOWLEDGE_BASES_ENV_VAR})`, () => {
+    it('resolves every declared alias to its own root, in declaration order', () => {
+      const cfg = loadDeclared({ 'kit-pkb': TOML_ROOT, 'kit-legal': SECOND_ROOT })
+
+      expect(knowledgeBaseAliases(cfg)).toEqual(['kit-pkb', 'kit-legal'])
+      expect(selectKnowledgeBase(cfg, 'kit-pkb').rootPath).toBe(TOML_ROOT)
+      expect(selectKnowledgeBase(cfg, 'kit-legal').rootPath).toBe(SECOND_ROOT)
+      expect(selectKnowledgeBase(cfg, 'kit-legal').alias).toBe('kit-legal')
     })
 
     it('leaves an absolute path unchanged', () => {
-      expect(load({ MCP_KI_KB_FS_ROOT_PATH: '/tmp/explicit-kb' }).rootPath).toBe('/tmp/explicit-kb')
+      expect(primary(load()).rootPath).toBe(TOML_ROOT)
     })
 
-    it('throws when MCP_KI_KB_FS_ROOT_PATH is unset', () => {
-      expect(() => loadConfig({})).toThrow(/MCP_KI_KB_FS_ROOT_PATH environment variable must be set/)
+    it('expands a leading ~/ to the user home directory', () => {
+      // `~/` alone expands to the home directory itself — an existing directory,
+      // so startup validation passes without planting a fixture in $HOME.
+      expect(primary(loadDeclared({ primary: '~/' })).rootPath).toBe(path.resolve(os.homedir()))
+    })
+
+    it('throws when the declaration is unset or blank', () => {
+      expect(() => loadConfig({})).toThrow(new RegExp(`${KNOWLEDGE_BASES_ENV_VAR} must be set to a JSON object`))
+      expect(loadRaw('   ')).toThrow(new RegExp(`${KNOWLEDGE_BASES_ENV_VAR} must be set to a JSON object`))
+    })
+
+    it('throws when the declaration is not valid JSON', () => {
+      expect(loadRaw('{kit-pkb: /tmp}')).toThrow(new RegExp(`${KNOWLEDGE_BASES_ENV_VAR} is not valid JSON`))
+    })
+
+    it('throws when the declaration is not a JSON object', () => {
+      for (const raw of ['[]', 'null', '3', '"/tmp/kb"']) {
+        expect(loadRaw(raw), `declaration ${raw}`).toThrow(new RegExp(`${KNOWLEDGE_BASES_ENV_VAR} must be a JSON object`))
+      }
+    })
+
+    it('throws when an alias does not map to a path string', () => {
+      expect(loadRaw('{"kit-pkb":42}')).toThrow(/alias "kit-pkb" must map to a path string/)
+      expect(loadRaw('{"kit-pkb":{"path":"/tmp"}}')).toThrow(/alias "kit-pkb" must map to a path string/)
+    })
+
+    it('throws when the same alias is declared twice', () => {
+      // JSON.parse keeps only the last of two identical keys, so a duplicate
+      // would otherwise silently pick a winner — for a base the caller believes
+      // points somewhere else.
+      expect(loadRaw(`{"kit-pkb":${JSON.stringify(TOML_ROOT)},"kit-pkb":${JSON.stringify(SECOND_ROOT)}}`)).toThrow(/declares alias "kit-pkb" more than once/)
+    })
+
+    it('throws when a declared path is also a declared value elsewhere but no alias repeats', () => {
+      // Guards the duplicate scan's key/value alternation: "b" appears as both a
+      // value and a later key, which must NOT read as a repeated alias.
+      const cfg = loadRaw(`{"a":${JSON.stringify(TOML_ROOT)},${JSON.stringify(TOML_ROOT)}:${JSON.stringify(SECOND_ROOT)}}`)
+      expect(cfg).toThrow(/is not a safe identifier/)
+    })
+
+    it('throws when no knowledge base is declared', () => {
+      expect(loadRaw('{}')).toThrow(/must declare at least one knowledge base/)
+    })
+
+    it('throws when an alias is not a safe identifier', () => {
+      for (const alias of ['', '_private', '.hidden', '-dash', 'has space', 'has/slash', '..', '__proto__', 'a'.repeat(65)]) {
+        expect(loadRaw(`{${JSON.stringify(alias)}:${JSON.stringify(TOML_ROOT)}}`), `alias ${alias}`).toThrow(/is not a safe identifier/)
+      }
+    })
+
+    it('accepts aliases with dots, dashes, underscores and digits', () => {
+      const cfg = loadDeclared({ 'kit-kris.me.uk': TOML_ROOT, kb_2: SECOND_ROOT })
+      expect(knowledgeBaseAliases(cfg)).toEqual(['kit-kris.me.uk', 'kb_2'])
+    })
+
+    it('throws when a declared path is empty', () => {
+      expect(loadRaw('{"kit-pkb":"   "}')).toThrow(/alias "kit-pkb" declares an empty path/)
+    })
+
+    it('throws when a declared path is relative', () => {
+      // A relative root would resolve against the host's launch directory, which
+      // would make the authorisation boundary depend on ambient state.
+      expect(loadRaw('{"kit-pkb":"relative/kb"}')).toThrow(/must declare an absolute path or one starting "~\/"/)
+    })
+
+    it('throws when a declared path does not exist — at startup, not on first call', () => {
+      expect(loadRaw(`{"kit-pkb":${JSON.stringify(path.join(TOML_ROOT, 'no-such-kb'))}}`)).toThrow(/points at a path that does not exist/)
+    })
+
+    it('throws when a declared path is not a directory', () => {
+      const filePath = path.join(TOML_ROOT, 'not-a-directory')
+      fs.writeFileSync(filePath, 'x', 'utf-8')
+      try {
+        expect(loadRaw(`{"kit-pkb":${JSON.stringify(filePath)}}`)).toThrow(/points at something that is not a directory/)
+      } finally {
+        fs.rmSync(filePath)
+      }
+    })
+
+    it('resolves each base\u2019s own .ki-config.toml once, at startup', () => {
+      fs.writeFileSync(path.join(SECOND_ROOT, '.ki-config.toml'), '[knowledgeislands-kb]\n[knowledgeislands-kb.zones]\nPillars = "Areas"\n', 'utf-8')
+      try {
+        const cfg = loadDeclared({ first: TOML_ROOT, second: SECOND_ROOT })
+
+        expect(selectKnowledgeBase(cfg, 'first').zones.Pillars).toBe('Pillars')
+        expect(selectKnowledgeBase(cfg, 'second').zones.Pillars).toBe('Areas')
+      } finally {
+        fs.rmSync(path.join(SECOND_ROOT, '.ki-config.toml'))
+      }
+    })
+  })
+
+  describe('selectKnowledgeBase', () => {
+    it('returns the base declared under that alias', () => {
+      const cfg = loadDeclared({ first: TOML_ROOT, second: SECOND_ROOT })
+      expect(selectKnowledgeBase(cfg, 'second').rootPath).toBe(SECOND_ROOT)
+    })
+
+    it('refuses an undeclared alias outright rather than defaulting to a base', () => {
+      const cfg = loadDeclared({ first: TOML_ROOT, second: SECOND_ROOT })
+      expect(() => selectKnowledgeBase(cfg, 'third')).toThrow('Unknown knowledge base "third". Declared aliases: first, second')
+    })
+
+    it('refuses an inherited Object.prototype key as an alias', () => {
+      // The declaration is held in a Map, so a lookup can never fall through to
+      // a prototype property even before the alias pattern rejects the name.
+      const cfg = loadDeclared({ first: TOML_ROOT })
+      expect(() => selectKnowledgeBase(cfg, 'constructor')).toThrow(/Unknown knowledge base "constructor"/)
+      expect(() => selectKnowledgeBase(cfg, '__proto__')).toThrow(/Unknown knowledge base "__proto__"/)
     })
   })
 
@@ -108,9 +235,9 @@ describe('loadConfig', () => {
       const original = process.env.NODE_ENV
       try {
         process.env.NODE_ENV = 'production'
-        expect(load().rootPath).toBe('/tmp/explicit-kb')
+        expect(primary(load()).rootPath).toBe(TOML_ROOT)
         delete process.env.NODE_ENV
-        expect(load().rootPath).toBe('/tmp/explicit-kb')
+        expect(primary(load()).rootPath).toBe(TOML_ROOT)
       } finally {
         if (original === undefined) delete process.env.NODE_ENV
         else process.env.NODE_ENV = original
@@ -122,7 +249,7 @@ describe('loadConfig', () => {
     it('uses zone overrides from a valid .ki-config.toml', () => {
       const toml = '[knowledgeislands-kb]\n[knowledgeislands-kb.zones]\nCalendar = "Cal"\n'
       fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
-      const cfg = loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT })
+      const cfg = primary(load())
       expect(cfg.zones.Calendar).toBe('Cal')
       expect(cfg.zones.Pillars).toBe('Pillars') // default
       expect(cfg.kiConfigRaw).toBe(toml)
@@ -130,14 +257,14 @@ describe('loadConfig', () => {
     })
 
     it('uses the default root-file allow-list when .ki-config.toml has none', () => {
-      const cfg = loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT })
+      const cfg = primary(load())
       expect(cfg.rootFileAllowlist).toEqual(['README.md', 'AGENTS.md', 'CLAUDE.md'])
     })
 
     it('uses exact root-file allow-list paths from .ki-config.toml', () => {
       const toml = '[knowledgeislands-kb]\nroot_file_allowlist = ["README.md", "GEMINI.md", ".github/copilot-instructions.md"]\n'
       fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
-      const cfg = loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT })
+      const cfg = primary(load())
       expect(cfg.rootFileAllowlist).toEqual(['README.md', 'GEMINI.md', '.github/copilot-instructions.md'])
       fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
     })
@@ -145,7 +272,7 @@ describe('loadConfig', () => {
     it('rejects non-relative or traversal paths in root_file_allowlist', () => {
       const toml = '[knowledgeislands-kb]\nroot_file_allowlist = ["../.env"]\n'
       fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
-      expect(() => loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT })).toThrow(/root_file_allowlist must be an array/)
+      expect(() => load()).toThrow(/root_file_allowlist must be an array/)
       fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
     })
 
@@ -156,7 +283,7 @@ describe('loadConfig', () => {
       for (const entry of bad) {
         const toml = `[knowledgeislands-kb]\nroot_file_allowlist = [${entry}]\n`
         fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
-        expect(() => loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT }), `entry ${entry}`).toThrow(/root_file_allowlist must be an array/)
+        expect(() => load(), `entry ${entry}`).toThrow(/root_file_allowlist must be an array/)
       }
       fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
     })
@@ -165,19 +292,19 @@ describe('loadConfig', () => {
       for (const value of ['"README.md"', '[42]']) {
         const toml = `[knowledgeislands-kb]\nroot_file_allowlist = ${value}\n`
         fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
-        expect(() => loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT }), `value ${value}`).toThrow(/root_file_allowlist must be an array/)
+        expect(() => load(), `value ${value}`).toThrow(/root_file_allowlist must be an array/)
       }
       fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
     })
 
     it('throws on a malformed .ki-config.toml (TOML parse error branch, lines 155-161)', () => {
       fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), '[[invalid\n', 'utf-8')
-      expect(() => loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT })).toThrow(/.ki-config.toml parse error/)
+      expect(() => load()).toThrow(/.ki-config.toml parse error/)
       fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
     })
 
     it('falls back to defaults when .ki-config.toml is absent', () => {
-      const cfg = loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT })
+      const cfg = primary(load())
       expect(cfg.zones.Calendar).toBe('Calendar')
       expect(cfg.kiConfigRaw).toBeNull()
     })
@@ -186,7 +313,7 @@ describe('loadConfig', () => {
       // An empty-string zone value should fall through to the default (str() returns fallback).
       const toml = '[knowledgeislands-kb]\n[knowledgeislands-kb.zones]\nCalendar = ""\n'
       fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
-      const cfg = loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT })
+      const cfg = primary(load())
       expect(cfg.zones.Calendar).toBe('Calendar') // empty string → fallback
       fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
     })
@@ -195,7 +322,7 @@ describe('loadConfig', () => {
       // A TOML integer value for a zone key should fall through to the default.
       const toml = '[knowledgeislands-kb]\n[knowledgeislands-kb.zones]\nCalendar = 42\n'
       fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
-      const cfg = loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT })
+      const cfg = primary(load())
       expect(cfg.zones.Calendar).toBe('Calendar') // non-string → fallback
       fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
     })
@@ -204,7 +331,7 @@ describe('loadConfig', () => {
       // No [knowledgeislands-kb] table → parsed['knowledgeislands-kb'] is undefined → ?? {} fires.
       const toml = '[other-section]\nfoo = "bar"\n'
       fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
-      const cfg = loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT })
+      const cfg = primary(load())
       expect(cfg.zones.Calendar).toBe('Calendar')
       expect(cfg.zones.Pillars).toBe('Pillars')
       fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
@@ -214,7 +341,7 @@ describe('loadConfig', () => {
       // [knowledgeislands-kb] section exists but has no zones sub-table → kb.zones is undefined → ?? {} fires.
       const toml = '[knowledgeislands-kb]\nsome_key = "value"\n'
       fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
-      const cfg = loadConfig({ MCP_KI_KB_FS_ROOT_PATH: TOML_ROOT })
+      const cfg = primary(load())
       expect(cfg.zones.Calendar).toBe('Calendar')
       fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
     })
