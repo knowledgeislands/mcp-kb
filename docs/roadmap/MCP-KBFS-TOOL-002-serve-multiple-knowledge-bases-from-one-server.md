@@ -3,7 +3,7 @@ id: MCP-KBFS-TOOL-002
 title: Serve multiple knowledge bases from one server
 theme: tool-surface
 horizon: blocking
-status: open
+status: ready
 blocks: []
 blocked-by: []
 baseline-ref: null
@@ -11,9 +11,9 @@ baseline-ref: null
 
 ## Context
 
-One server instance serves exactly one knowledge base, so every KB needs its own registration. `.chezmoidata/mcp-servers.yaml` declares thirteen `mcp-ki-kb-fs` entries that differ only in `MCP_KI_KB_FS_ROOT_PATH`, all at `destructive` access, and each is rendered into both `claude-desktop` and `mcporter`. They are thirteen of the nineteen server entries in that file, so this one server accounts for roughly two thirds of the declared MCP estate.
+One server instance serves exactly one knowledge base, so every KB needs its own registration. `.chezmoidata/mcp-servers.yaml` declares eleven `mcp-ki-kb-fs` entries that differ only in `MCP_KI_KB_FS_ROOT_PATH`, all at `destructive` access, and each is rendered into both `claude-desktop` and `mcporter`. They are the majority of the server entries in that file, so this one server dominates the declared MCP estate.
 
-Each registration publishes the same seven tools, so an affected client sees around ninety-one tool definitions where seven plus a knowledge-base selector would do. The cost is borne on every request, not only at setup: each registration is a separate process and its tools occupy the client's tool list whether or not that base is in use. Reducing thirteen registrations to one is therefore a context and process saving rather than a configuration tidy-up, which is why this takes priority over the rest of the queue.
+Each registration publishes the same seven tools, so an affected client sees around seventy-seven tool definitions where seven plus a knowledge-base selector would do. The cost is borne on every request, not only at setup: each registration is a separate process and its tools occupy the client's tool list whether or not that base is in use. Reducing eleven registrations to one is therefore a context and process saving rather than a configuration tidy-up, which is why this takes priority over the rest of the queue.
 
 Make one server able to address several declared knowledge bases, so a single registration replaces the fleet.
 
@@ -23,7 +23,7 @@ The declaration is also the authorisation boundary for the install, not merely a
 
 This item delivers the server-side capability and proves it by collapsing the live registrations. The canonical, renderer-neutral source is `.chezmoidata/mcp-servers.yaml` in the dotfiles repository, rendered per client through the `mcp-servers-json` template; the change is made there and applied with chezmoi rather than edited in any client's generated file.
 
-The two registrations pointing at code repositories rather than knowledge bases are dropped rather than migrated, so the consolidated declaration covers eleven bases.
+The consolidated declaration covers the eleven declared knowledge bases.
 
 Legacy single-root configuration is deliberately not retained. This server has one operator, so a clean cutover is preferable to carrying two configuration grammars; `MCP_KI_KB_FS_ROOT_PATH` may be replaced outright rather than deprecated.
 
@@ -37,7 +37,7 @@ The containment primitives are already base-agnostic, which is what makes this t
 
 What does assume one base is the call path between them. Functions in `src/main/` take `(cfg: Config, args)` and read `cfg.rootPath` and `cfg.zones` directly — `readFile` at [src/main/files/index.ts](../../src/main/files/index.ts) is representative — and no tool input schema names a knowledge base, so there is currently no way for a caller to express which base it means.
 
-Two of the thirteen registrations point at code repositories rather than knowledge bases: one at this repository and one at `mcp-m365`. Whether those are intentional needs confirming, since it changes whether the consolidation covers eleven bases or thirteen.
+Two further registrations previously pointed at code repositories rather than knowledge bases — this repository and `mcp-m365` — and were removed from the declaration in dotfiles commit `591d4ce` before this item became ready. Every remaining declared root is a knowledge base, so the alias declaration need not accommodate roots without KB zone structure.
 
 The layer boundary and result contracts were corrected recently and constrain how this lands. `src/main/` returns plain data or throws, `src/tools/` maps that to an envelope through `src/utils/results.ts`, and all seven tools declare an `outputSchema` derived from the same zod schema that types the `main/` return. `readFileResultSchema` is `.strict()`, so echoing the serving base in a result is a breaking output-contract change rather than an additive one.
 
@@ -50,7 +50,7 @@ The layer boundary and result contracts were corrected recently and constrain ho
 5. Make `kb_config` report the declared aliases and each one's resolved zones, so a caller can discover what this install permits without reading the environment. Keep one audit log and record the serving alias on each event.
 6. Update `scripts/smoke.ts` and the tool-registration assertions for the changed input schemas, and update `README.md` and `CLAUDE.md` to document the alias declaration as the install's authorisation boundary.
 7. Add tests for alias resolution, a refused undeclared alias, a refused malformed or duplicate declaration, and cross-base containment — specifically that a relative path under one alias cannot resolve into another declared base.
-8. Replace the thirteen `mcp-ki-kb-fs` entries in `.chezmoidata/mcp-servers.yaml` with one declaring the eleven knowledge-base aliases, keeping its `clients` set as `[claude-desktop, mcporter]`, then apply with chezmoi and confirm the rendered configuration for both clients holds a single entry that serves each alias.
+8. Replace the eleven `mcp-ki-kb-fs` entries in `.chezmoidata/mcp-servers.yaml` with one declaring the eleven knowledge-base aliases, keeping its `clients` set as `[claude-desktop, mcporter]`, then apply with chezmoi and confirm the rendered configuration for both clients holds a single entry that serves each alias.
 
 ## Files touched
 
@@ -111,7 +111,7 @@ Today a traversal bug can only escape one root. With several roots resolved in o
 
 ### Access level stays per registration, by construction
 
-All thirteen entries run at `destructive`, so collapsing them changes nothing in practice. More importantly, a per-base access level is not merely unimplemented — it is incoherent within one server, because the access level selects the tool surface rather than filtering calls.
+All eleven entries run at `destructive`, so collapsing them changes nothing in practice. More importantly, a per-base access level is not merely unimplemented — it is incoherent within one server, because the access level selects the tool surface rather than filtering calls.
 
 `makeAccessGatedRegister` wraps `server.registerTool` and returns before registering any tool whose derived level exceeds `config.accessLevel` ([src/utils/access-level.ts](../../src/utils/access-level.ts)). A gated tool is therefore never registered and never appears on the wire. One server publishes exactly one surface, decided at boot, so `kb_write` cannot exist for one alias and be absent for another.
 
