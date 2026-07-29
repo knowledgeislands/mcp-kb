@@ -3,7 +3,7 @@ id: MCP-KBFS-TOOL-002
 title: Serve multiple knowledge bases from one server
 theme: tool-surface
 horizon: blocking
-status: in-progress
+status: acceptance
 blocks: []
 blocked-by: []
 baseline-ref: 61b1aba5d288ccc908962c1a8cf7ff4fa37235f3
@@ -84,6 +84,55 @@ This is one sequential unit and should not be fanned out. The steps form a depen
 Delegate it as a single judgment task with the security invariants stated in the brief, because the risky part is wiring — passing the right base's root to the right base's path — rather than any individual change. The verification gate is the cross-base containment test plus the enforced 100% coverage; both must be in the brief, since a plausible refactor can satisfy the type checker while crossing a base boundary.
 
 If any part is separable, it is step 6 — the smoke, README, and CLAUDE.md updates — which can follow once the surface settles.
+
+## Acceptance
+
+### Delivered
+
+All eight steps. One server now serves every declared knowledge base, selected by a caller-facing alias, and the eleven per-base registrations are collapsed into one.
+
+`MCP_KI_KB_FS_KNOWLEDGE_BASES` carries a JSON alias-to-path object and replaces `MCP_KI_KB_FS_ROOT_PATH` with no fallback, as the Boundary required. Each of the seven tools takes a required `kb` argument validated as a zod enum over the declared aliases, so an undeclared alias fails argument validation before any handler runs.
+
+Deliberately excluded, per the Boundary: cross-base operations in a single call, per-base access levels, and any legacy single-root compatibility path.
+
+### Summary of changes
+
+`Config` gained `knowledgeBases: ReadonlyMap<string, KnowledgeBase>` in place of the flat `rootPath`, `zones`, `rootFileAllowlist`, and `kiConfigRaw`. A `Map` rather than an object, so no alias can collide with an inherited `Object.prototype` key. `accessLevel` and the audit-log fields stay server-wide.
+
+`src/main/` entry points take `base: KnowledgeBase` rather than `Config`. Every `resolveWithinRoot`, `assertRealPathWithinRoot`, and `isInScope` call site is otherwise unchanged, which was the point: the containment primitives already took a root or zones per call, so the change is in the wiring above them.
+
+A new `src/tools/shared.ts` holds the `kb` argument definition once, and each handler resolves the alias through `selectKnowledgeBase` before calling `main/`. `kb_config` reports the selected base plus the declared roster, and returns no filesystem paths.
+
+Startup validation rejects a blank or invalid declaration, a non-object, a non-string value, a duplicate alias, an alias failing `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`, an empty declaration, an empty path, a relative path, a non-existent path, and a non-directory path.
+
+In the dotfiles repository, `.chezmoidata/mcp-servers.yaml` now declares one `kit-mcp-ki-kb-fs` entry with all eleven aliases, rendering to six mcporter servers where there were sixteen.
+
+### Verification
+
+Every gate was run and its output inspected rather than taken from the implementing agent's report.
+
+1. `bunx tsc --noEmit` — clean.
+2. `bun run test` — 289 passed across 12 files.
+3. `bun run test:coverage` — 100% statements (687/687), branches (440/440), functions (79/79), lines (630/630), against the enforced 100% threshold.
+4. `bun run ki:test:smoke` — boots two temporary bases and reports seven tools, all schemas present, each requiring `kb` constrained to the declared aliases, so the selector is proven on the wire rather than only in process.
+5. `ki repo audit --repo .` — `FAIL=0 WARN=0`.
+6. Cross-base containment, `src/main/files/cross-base.test.ts` — two sibling bases under one parent so `..` arithmetic lands in the neighbour; six traversal shapes refused across read, list, write, delete, rename, and folder creation; the sibling's bytes asserted unchanged after every write and delete attempt; symlink escapes refused for both a file and a directory; and the same content proven reachable through its own alias, so the refusals are about the boundary rather than a missing fixture.
+7. Declaration validation — undeclared alias, malformed JSON, duplicate alias, and non-directory path each covered in `src/config/index.test.ts`.
+8. Live check against real bases — one server resolved `kit-pkb`, `hnr-shared`, and `kit-legal` to their own roots and listed each one's `Pillars` zone; an undeclared alias was refused.
+
+Baseline `61b1aba5d288ccc908962c1a8cf7ff4fa37235f3`. Resulting commits `f37d11e`, `558ecae`, merged as `d1af69e`. Dotfiles commit `7736223`, on top of `591d4ce` which removed the two code-repository registrations.
+
+### Outstanding concerns
+
+Claude Desktop retains thirteen stale `mcp-ki-kb-fs` entries and cannot be corrected from the declaration. Its config is produced by `modify_private_claude_desktop_config.json.tmpl`, whose `mergeMcpServers` is `{ ...existing, ...desired }` and documents that undeclared server records remain untouched. Source removals therefore never propagate, `chezmoi diff` reports clean, and each stale entry sets only the removed `MCP_KI_KB_FS_ROOT_PATH` so it will fail to start. The owner accepted this and took it on directly; it is outside this item's boundary.
+
+Three additive deviations from the plan, all narrowing rather than widening behaviour: relative root paths are rejected, because a relative root resolves against the host's launch directory and would make the authorisation boundary depend on ambient state; `kb_config` returns the roster alongside the selected base, since the plan's reporting requirement had to coexist with `kb` being required on all seven tools; and `src/tools/shared.ts` is a non-`index.ts` file under `src/tools/`, so it is coverage-included and is fully covered.
+
+### Mini recap
+
+The plan's judgement that this was smaller than it looked held up: the containment helpers were already root-parameterised, so the work was config shape and threading rather than a security rewrite. The decision to make `kb` required rather than defaulted is what made the result verifiable — a default base would have left a silent-wrong-base failure mode that no test could reasonably assert against.
+
+Proposed learning route, not applied: the additive-merge property of the Claude Desktop config transform means removing any server from the canonical declaration is silently ineffective for that client. That is a durable fact about the dotfiles repository rather than about this server, so it belongs to a dotfiles work item if the owner wants it fixed generally.
 
 ## Discussion
 
