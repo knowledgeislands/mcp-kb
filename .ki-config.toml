@@ -24,3 +24,5 @@ TOOL = "tool-surface"
 ["knowledgeislands/ki-agentic-harness:ki-tokenomics-codex"]
 
 ["knowledgeislands/ki-agentic-harness:ki-git"]
+
+["knowledgeislands/ki-agentic-harness:ki-decision-records"]
