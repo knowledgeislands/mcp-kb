@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { assertRealPathWithinRoot, errMessage, errorResult, isNodeError, jsonResult, resolveWithinRoot } from './utils.js'
+import { assertRealPathWithinRoot, errMessage, isNodeError, resolveWithinRoot } from './utils.js'
 
 describe('resolveWithinRoot', () => {
   const root = '/tmp/kb-root'
@@ -41,30 +41,6 @@ describe('resolveWithinRoot', () => {
 
   it('handles a root that already ends with a separator', () => {
     expect(resolveWithinRoot('/tmp/kb-root/', 'note.md')).toBe('/tmp/kb-root/note.md')
-  })
-})
-
-describe('errorResult', () => {
-  it('builds the MCP error response shape, prefixing the action', () => {
-    expect(errorResult('reading note', new Error('something went wrong'))).toEqual({
-      isError: true,
-      content: [{ type: 'text', text: 'Error reading note: something went wrong' }]
-    })
-  })
-
-  it('coerces non-Error values via errMessage', () => {
-    expect(errorResult('writing note', 'plain string')).toEqual({
-      isError: true,
-      content: [{ type: 'text', text: 'Error writing note: plain string' }]
-    })
-  })
-})
-
-describe('jsonResult', () => {
-  it('serialises a payload to pretty JSON in a text block', () => {
-    const result = jsonResult({ a: 1, b: 'two' })
-    expect(result.content[0].type).toBe('text')
-    expect(JSON.parse(result.content[0].text)).toEqual({ a: 1, b: 'two' })
   })
 })
 

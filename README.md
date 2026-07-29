@@ -305,6 +305,8 @@ Add a new tool by registering it in [`src/tools/kb/index.ts`](./src/tools/kb/ind
 1. Validate inputs with a strict zod schema (`.strict()` to reject extras).
 2. Set MCP annotations honestly (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) — the access-level gate derives the tool's tier from these.
 3. Run any path inputs through `resolveWithinRoot(cfg.rootPath, ...)` (and `assertRealPathWithinRoot` for FS-touching tools) before touching the filesystem.
-4. Return errors via `errorResult(...)` so the client sees `isError: true`.
+4. Declare an `outputSchema` using the same zod schema that types the `src/main/` function's return value, so the advertised schema and the emitted `structuredContent` cannot drift.
+5. Keep registrations in ascending alphabetical order by tool name within the group file.
+6. Let the `src/main/` function throw on failure, and catch it in the tool handler, returning `errorResult(...)` so the client sees `isError: true`. A throw that escapes the handler becomes a protocol error and bypasses the audit log.
 
-The tool layer stays thin — validate args, call a `src/main/` function with `cfg`, map the result to an MCP envelope. The generic content logic lives in [`src/main/files/index.ts`](./src/main/files/index.ts), with Markdown-specific helpers retained in [`src/main/notes/index.ts`](./src/main/notes/index.ts).
+The tool layer stays thin — validate args, call a `src/main/` function with `cfg`, map the returned plain data to an MCP envelope with `jsonResult` / `errorResult` from [`src/utils/results.ts`](./src/utils/results.ts). The generic content logic lives in [`src/main/files/index.ts`](./src/main/files/index.ts), with Markdown-specific helpers retained in [`src/main/notes/index.ts`](./src/main/notes/index.ts).

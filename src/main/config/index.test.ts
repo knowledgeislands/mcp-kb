@@ -3,7 +3,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Config } from '../../config/index.js'
-import { readKbConfig } from './index.js'
+import { kbConfigResultSchema, readKbConfig } from './index.js'
 
 const ROOT_PATH = path.join(os.tmpdir(), 'knowledgeislands-tests', `config-${process.pid}`)
 
@@ -39,7 +39,7 @@ afterAll(async () => {
 describe('readKbConfig', () => {
   it('returns default zones when kiConfigRaw is null', () => {
     const result = readKbConfig(cfg())
-    const parsed = JSON.parse(result.content[0].text)
+    const parsed = result
     expect(parsed.zones).toEqual({
       Calendar: 'Calendar',
       Pillars: 'Pillars',
@@ -69,16 +69,17 @@ describe('readKbConfig', () => {
         }
       })
     )
-    const parsed = JSON.parse(result.content[0].text)
+    const parsed = result
     expect(parsed.kiConfigPresent).toBe(true)
     expect(parsed.kiConfigRaw).toBe(raw)
     expect(parsed.zones.Calendar).toBe('Cal')
   })
 
-  it('includes structuredContent in the result', () => {
-    const result = readKbConfig(cfg())
-    expect(result.structuredContent).toBeDefined()
-    expect((result.structuredContent as Record<string, unknown>).zones).toBeDefined()
+  it('returns a value that satisfies the declared kb_config outputSchema', () => {
+    // The schema is what the tool advertises as `outputSchema` and what the
+    // handler emits as `structuredContent`; parsing here is what stops the two
+    // from drifting apart.
+    expect(() => kbConfigResultSchema.parse(readKbConfig(cfg()))).not.toThrow()
   })
 
   it('exposes staging areas inbound and outbound separately from zones', () => {
@@ -95,17 +96,19 @@ describe('readKbConfig', () => {
         }
       })
     )
-    const parsed = JSON.parse(result.content[0].text)
+    const parsed = result
     expect(parsed.staging.inbound).toBe('inbox')
     expect(parsed.staging.outbound).toBe('outbox')
-    // zones object does not include inbound/outbound
-    expect(parsed.zones.inbound).toBeUndefined()
-    expect(parsed.zones.outbound).toBeUndefined()
+    // zones object does not include inbound/outbound — the cast is what lets us
+    // assert absence of keys the result type (and outputSchema) already excludes.
+    const zones = parsed.zones as Record<string, string | undefined>
+    expect(zones.inbound).toBeUndefined()
+    expect(zones.outbound).toBeUndefined()
   })
 
   it('includes the exact root-file allow-list separately from zones', () => {
     const result = readKbConfig(cfg({ rootFileAllowlist: ['README.md', '.github/copilot-instructions.md'] }))
-    const parsed = JSON.parse(result.content[0].text)
+    const parsed = result
     expect(parsed.rootFileAllowlist).toEqual(['README.md', '.github/copilot-instructions.md'])
   })
 })

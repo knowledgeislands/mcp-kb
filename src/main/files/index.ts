@@ -8,13 +8,18 @@
  * - Write accepts `encoding: 'utf-8' | 'base64'`; base64 is decoded to bytes before
  *   writing so binary assets round-trip cleanly.
  * - Zone-scoping guard applied before `isProtectedPath`.
+ *
+ * Layer boundary: every function here returns **plain data** and signals failure
+ * by throwing. Mapping to an MCP envelope (`jsonResult` / `errorResult`) is the
+ * job of the thin `src/tools/` layer.
  */
 import { randomUUID } from 'node:crypto'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import { z } from 'zod'
 import type { Config } from '../../config/index.js'
 import { isProtectedPath } from '../../utils/protected.js'
-import { assertRealPathWithinRoot, errorResult, isNodeError, jsonResult, resolveWithinRoot } from '../../utils/utils.js'
+import { assertRealPathWithinRoot, isNodeError, resolveWithinRoot } from '../../utils/utils.js'
 import { isInScope, outOfScopeError } from '../../utils/zones.js'
 import { collectFiles, collectFolders, collectNotes, relativeFromRoot } from '../shared.js'
 
@@ -57,6 +62,82 @@ const isUtf8 = (buf: Buffer): boolean => {
 export type ReadPart = 'all' | 'frontmatter' | 'body'
 export type ListKind = 'files' | 'folders' | 'notes'
 
+/**
+ * Result schemas for the tool-facing entry points.
+ *
+ * Each schema is the **single source** for two things: the TypeScript return
+ * type of the `main/` function (via `z.infer`) and the `outputSchema` the
+ * matching `src/tools/kb` registration declares. Because the tool handler feeds
+ * the very same value into `jsonResult`, the advertised JSON Schema and the
+ * emitted `structuredContent` cannot drift apart.
+ */
+export const readFileResultSchema = z
+  .object({
+    path: z.string().describe('The KB-relative path that was read, exactly as requested.'),
+    part: z.enum(['all', 'frontmatter', 'body']).describe('Which slice of the file was returned.'),
+    encoding: z.enum(['utf-8', 'base64']).describe('How content is encoded: utf-8 for text, base64 for binary.'),
+    mimeType: z.string().describe('MIME type derived from the file extension; application/octet-stream when unrecognised.'),
+    content: z.string().describe('File content in the stated encoding.'),
+    size: z.number().describe('Size of the whole file on disk, in bytes.')
+  })
+  .strict()
+
+export type ReadFileResult = z.infer<typeof readFileResultSchema>
+
+export const listContentResultSchema = z
+  .object({
+    path: z.string().describe('The KB-relative directory that was listed, exactly as requested.'),
+    kind: z.enum(['files', 'folders', 'notes']).describe('What kind of entry was listed.'),
+    recursive: z.boolean().describe('Whether subdirectories were descended into.'),
+    ext: z.string().nullable().describe('Extension filter applied, or null when none applied.'),
+    count: z.number().describe('Number of entries returned.'),
+    entries: z.array(z.string()).describe('KB-relative paths of the matching entries.')
+  })
+  .strict()
+
+export type ListContentResult = z.infer<typeof listContentResultSchema>
+
+export type ListFilesResult = {
+  path: string
+  recursive: boolean
+  ext: string | null
+  count: number
+  files: string[]
+}
+
+export const writeFileResultSchema = z
+  .object({
+    path: z.string().describe('The KB-relative path that was written, exactly as requested.'),
+    encoding: z.enum(['utf-8', 'base64']).describe('Encoding the supplied content was interpreted as.'),
+    bytes: z.number().describe('Byte length of the decoded content.'),
+    dry_run: z.boolean().describe('True when nothing was written because the call was a preview.'),
+    action: z.string().describe('Human-readable summary of what was (or would be) done.')
+  })
+  .strict()
+
+export type WriteFileResult = z.infer<typeof writeFileResultSchema>
+
+export const renameFileResultSchema = z
+  .object({
+    from: z.string().describe('The KB-relative source path.'),
+    to: z.string().describe('The KB-relative destination path.')
+  })
+  .strict()
+
+export type RenameFileResult = z.infer<typeof renameFileResultSchema>
+
+export const deleteFileResultSchema = z
+  .object({
+    path: z.string().describe('The KB-relative path that was deleted, exactly as requested.'),
+    bytes: z.number().describe('Size of the file at the time of the call, in bytes.'),
+    deleted: z.boolean().describe('True when the file was actually removed.'),
+    dry_run: z.boolean().describe('True when nothing was deleted because the call was a preview.'),
+    action: z.string().describe('Human-readable summary of what was (or would be) done.')
+  })
+  .strict()
+
+export type DeleteFileResult = z.infer<typeof deleteFileResultSchema>
+
 type FrontmatterSplit = { frontmatter: string | null; body: string; malformed: boolean }
 
 const splitFrontmatter = (content: string): FrontmatterSplit => {
@@ -70,24 +151,24 @@ const splitFrontmatter = (content: string): FrontmatterSplit => {
   return { frontmatter: null, body: content, malformed: true }
 }
 
-export const readFile = async (cfg: Config, { path: filePath, part = 'all' }: { path: string; part?: ReadPart }) => {
+export const readFile = async (
+  cfg: Config,
+  { path: filePath, part = 'all' }: { path: string; part?: ReadPart }
+): Promise<ReadFileResult> => {
   try {
     const absPath = resolveWithinRoot(cfg.rootPath, filePath)
     const rel = relativeFromRoot(cfg.rootPath, absPath).split(path.sep).join('/')
     const isAllowlistedRootFile = filePath.replaceAll('\\', '/') === rel && cfg.rootFileAllowlist.includes(rel)
     if (!isInScope(rel, cfg.zones) && !isAllowlistedRootFile) {
-      return errorResult(
-        'reading file',
-        new Error(`${outOfScopeError(cfg.zones)} Root-level and named near-root files must exactly match root_file_allowlist.`)
-      )
+      throw new Error(`${outOfScopeError(cfg.zones)} Root-level and named near-root files must exactly match root_file_allowlist.`)
     }
     if (isProtectedPath(rel) && !isAllowlistedRootFile) {
-      return errorResult('reading file', new Error(`Path is protected: "${filePath}"`))
+      throw new Error(`Path is protected: "${filePath}"`)
     }
     await assertRealPathWithinRoot(cfg.rootPath, absPath)
     const stat = await fs.stat(absPath)
     if (!stat.isFile()) {
-      return errorResult('reading file', new Error(`Not a file: "${filePath}"`))
+      throw new Error(`Not a file: "${filePath}"`)
     }
     const buf = await fs.readFile(absPath)
     const mimeType = mimeTypeFor(filePath)
@@ -95,79 +176,74 @@ export const readFile = async (cfg: Config, { path: filePath, part = 'all' }: { 
       const content = buf.toString('utf-8')
       if (part !== 'all') {
         if (path.extname(filePath).toLowerCase() !== '.md') {
-          return errorResult('reading file', new Error(`part is only available for UTF-8 Markdown files: "${filePath}"`))
+          throw new Error(`part is only available for UTF-8 Markdown files: "${filePath}"`)
         }
         const split = splitFrontmatter(content)
         if (split.malformed) {
-          return errorResult('reading file', new Error(`Malformed frontmatter in "${filePath}": opening "---" has no closing "---"`))
+          throw new Error(`Malformed frontmatter in "${filePath}": opening "---" has no closing "---"`)
         }
-        return jsonResult({
+        return {
           path: filePath,
           part,
           encoding: 'utf-8',
           mimeType,
           content: part === 'frontmatter' ? (split.frontmatter ?? '(no frontmatter)') : split.body,
           size: stat.size
-        })
+        }
       }
-      return jsonResult({ path: filePath, part, encoding: 'utf-8', mimeType, content, size: stat.size })
+      return { path: filePath, part, encoding: 'utf-8', mimeType, content, size: stat.size }
     }
     if (part !== 'all') {
-      return errorResult('reading file', new Error(`part is only available for UTF-8 Markdown files: "${filePath}"`))
+      throw new Error(`part is only available for UTF-8 Markdown files: "${filePath}"`)
     }
-    return jsonResult({ path: filePath, part, encoding: 'base64', mimeType, content: buf.toString('base64'), size: stat.size })
+    return { path: filePath, part, encoding: 'base64', mimeType, content: buf.toString('base64'), size: stat.size }
   } catch (err) {
     if (isNodeError(err) && err.code === 'ENOENT') {
-      return errorResult('reading file', new Error(`File not found: "${filePath}"`))
+      throw new Error(`File not found: "${filePath}"`)
     }
-    return errorResult('reading file', err)
+    throw err
   }
 }
 
 export const listContent = async (
   cfg: Config,
   { path: dirPath, kind, recursive, ext }: { path: string; kind: ListKind; recursive: boolean; ext?: string }
-) => {
-  try {
-    const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
-    const rel = relativeFromRoot(cfg.rootPath, absDir)
-    if (!isInScope(rel, cfg.zones)) {
-      return errorResult('listing content', new Error(outOfScopeError(cfg.zones)))
-    }
-    if (isProtectedPath(rel)) {
-      return errorResult('listing content', new Error(`Path is protected: "${dirPath}"`))
-    }
-    await assertRealPathWithinRoot(cfg.rootPath, absDir)
-    const paths =
-      kind === 'files'
-        ? await collectFiles(cfg.rootPath, absDir, recursive, ext ?? null)
-        : kind === 'folders'
-          ? await collectFolders(cfg.rootPath, absDir, recursive)
-          : await collectNotes(cfg.rootPath, absDir, recursive)
-    const entries = paths.map((entry) => path.relative(cfg.rootPath, entry))
-    return jsonResult({ path: dirPath, kind, recursive, ext: kind === 'files' ? (ext ?? null) : null, count: entries.length, entries })
-  } catch (err) {
-    return errorResult('listing content', err)
+): Promise<ListContentResult> => {
+  const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
+  const rel = relativeFromRoot(cfg.rootPath, absDir)
+  if (!isInScope(rel, cfg.zones)) {
+    throw new Error(outOfScopeError(cfg.zones))
   }
+  if (isProtectedPath(rel)) {
+    throw new Error(`Path is protected: "${dirPath}"`)
+  }
+  await assertRealPathWithinRoot(cfg.rootPath, absDir)
+  const paths =
+    kind === 'files'
+      ? await collectFiles(cfg.rootPath, absDir, recursive, ext ?? null)
+      : kind === 'folders'
+        ? await collectFolders(cfg.rootPath, absDir, recursive)
+        : await collectNotes(cfg.rootPath, absDir, recursive)
+  const entries = paths.map((entry) => path.relative(cfg.rootPath, entry))
+  return { path: dirPath, kind, recursive, ext: kind === 'files' ? (ext ?? null) : null, count: entries.length, entries }
 }
 
-export const listFiles = async (cfg: Config, { path: dirPath, recursive, ext }: { path: string; recursive: boolean; ext?: string }) => {
-  try {
-    const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
-    const rel = relativeFromRoot(cfg.rootPath, absDir)
-    if (rel && !isInScope(rel, cfg.zones)) {
-      return errorResult('listing files', new Error(outOfScopeError(cfg.zones)))
-    }
-    if (isProtectedPath(rel)) {
-      return errorResult('listing files', new Error(`Path is protected: "${dirPath}"`))
-    }
-    await assertRealPathWithinRoot(cfg.rootPath, absDir)
-    const files = await collectFiles(cfg.rootPath, absDir, recursive, ext ?? null)
-    const relative = files.map((p) => path.relative(cfg.rootPath, p))
-    return jsonResult({ path: dirPath, recursive, ext: ext ?? null, count: relative.length, files: relative })
-  } catch (err) {
-    return errorResult('listing files', err)
+export const listFiles = async (
+  cfg: Config,
+  { path: dirPath, recursive, ext }: { path: string; recursive: boolean; ext?: string }
+): Promise<ListFilesResult> => {
+  const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
+  const rel = relativeFromRoot(cfg.rootPath, absDir)
+  if (rel && !isInScope(rel, cfg.zones)) {
+    throw new Error(outOfScopeError(cfg.zones))
   }
+  if (isProtectedPath(rel)) {
+    throw new Error(`Path is protected: "${dirPath}"`)
+  }
+  await assertRealPathWithinRoot(cfg.rootPath, absDir)
+  const files = await collectFiles(cfg.rootPath, absDir, recursive, ext ?? null)
+  const relative = files.map((p) => path.relative(cfg.rootPath, p))
+  return { path: dirPath, recursive, ext: ext ?? null, count: relative.length, files: relative }
 }
 
 export type FileEncoding = 'utf-8' | 'base64'
@@ -187,15 +263,15 @@ export const writeFile = async (
     create_dirs: boolean
     dry_run: boolean
   }
-) => {
+): Promise<WriteFileResult> => {
   try {
     const absPath = resolveWithinRoot(cfg.rootPath, filePath)
     const rel = relativeFromRoot(cfg.rootPath, absPath)
     if (!isInScope(rel, cfg.zones)) {
-      return errorResult('writing file', new Error(outOfScopeError(cfg.zones)))
+      throw new Error(outOfScopeError(cfg.zones))
     }
     if (isProtectedPath(rel)) {
-      return errorResult('writing file', new Error(`Path is protected: "${filePath}"`))
+      throw new Error(`Path is protected: "${filePath}"`)
     }
     await assertRealPathWithinRoot(cfg.rootPath, absPath)
     const buf = encoding === 'base64' ? Buffer.from(content, 'base64') : Buffer.from(content, 'utf-8')
@@ -211,7 +287,7 @@ export const writeFile = async (
         if (!(isNodeError(err) && err.code === 'ENOENT')) throw err
       }
       const action = exists ? `would overwrite (${existingBytes} → ${bytes} bytes)` : `would create (${bytes} bytes)`
-      return jsonResult({ dry_run: true, action, path: filePath, encoding, bytes })
+      return { dry_run: true, action, path: filePath, encoding, bytes }
     }
     if (create_dirs) {
       await fs.mkdir(path.dirname(absPath), { recursive: true })
@@ -220,91 +296,95 @@ export const writeFile = async (
     const tmpPath = `${absPath}.${randomUUID()}.tmp`
     await fs.writeFile(tmpPath, buf)
     await fs.rename(tmpPath, absPath)
-    return jsonResult({ path: filePath, bytes, encoding })
+    return { dry_run: false, action: `wrote (${bytes} bytes)`, path: filePath, encoding, bytes }
   } catch (err) {
     if (isNodeError(err) && err.code === 'ENOENT') {
-      return errorResult(
-        'writing file',
-        new Error(`Directory not found for: "${filePath}" — set create_dirs: true to create it automatically`)
-      )
+      throw new Error(`Directory not found for: "${filePath}" — set create_dirs: true to create it automatically`)
     }
-    return errorResult('writing file', err)
+    throw err
   }
 }
 
-export const renameFile = async (cfg: Config, { from, to, create_dirs }: { from: string; to: string; create_dirs: boolean }) => {
+export const renameFile = async (
+  cfg: Config,
+  { from, to, create_dirs }: { from: string; to: string; create_dirs: boolean }
+): Promise<RenameFileResult> => {
   try {
     const absFrom = resolveWithinRoot(cfg.rootPath, from)
     const absTo = resolveWithinRoot(cfg.rootPath, to)
     const relFrom = relativeFromRoot(cfg.rootPath, absFrom)
     const relTo = relativeFromRoot(cfg.rootPath, absTo)
     if (!isInScope(relFrom, cfg.zones)) {
-      return errorResult('renaming file', new Error(outOfScopeError(cfg.zones)))
+      throw new Error(outOfScopeError(cfg.zones))
     }
     if (!isInScope(relTo, cfg.zones)) {
-      return errorResult('renaming file', new Error(outOfScopeError(cfg.zones)))
+      throw new Error(outOfScopeError(cfg.zones))
     }
     if (isProtectedPath(relFrom)) {
-      return errorResult('renaming file', new Error(`Path is protected: "${from}"`))
+      throw new Error(`Path is protected: "${from}"`)
     }
     if (isProtectedPath(relTo)) {
-      return errorResult('renaming file', new Error(`Path is protected: "${to}"`))
+      throw new Error(`Path is protected: "${to}"`)
     }
     if (absFrom === absTo) {
-      return errorResult('renaming file', new Error(`Source and destination are the same: "${from}"`))
+      throw new Error(`Source and destination are the same: "${from}"`)
     }
     await assertRealPathWithinRoot(cfg.rootPath, absFrom)
     const fromStat = await fs.stat(absFrom)
     if (!fromStat.isFile()) {
-      return errorResult('renaming file', new Error(`Not a file: "${from}"`))
+      throw new Error(`Not a file: "${from}"`)
     }
     await assertRealPathWithinRoot(cfg.rootPath, absTo)
     if (create_dirs) {
       await fs.mkdir(path.dirname(absTo), { recursive: true })
     }
+    let destinationExists = false
     try {
       await fs.access(absTo)
-      return errorResult('renaming file', new Error(`Destination already exists: "${to}" (rename is non-destructive)`))
+      destinationExists = true
     } catch (err) {
       if (!(isNodeError(err) && err.code === 'ENOENT')) throw err
     }
+    if (destinationExists) {
+      throw new Error(`Destination already exists: "${to}" (rename is non-destructive)`)
+    }
     await fs.rename(absFrom, absTo)
-    return jsonResult({ from, to })
+    return { from, to }
   } catch (err) {
     if (isNodeError(err) && err.code === 'ENOENT') {
-      return errorResult(
-        'renaming file',
-        new Error(`File not found: "${from}" — set create_dirs: true if the destination directory does not exist`)
-      )
+      throw new Error(`File not found: "${from}" — set create_dirs: true if the destination directory does not exist`)
     }
-    return errorResult('renaming file', err)
+    throw err
   }
 }
 
-export const deleteFile = async (cfg: Config, { path: filePath, dry_run }: { path: string; dry_run: boolean }) => {
+export const deleteFile = async (
+  cfg: Config,
+  { path: filePath, dry_run }: { path: string; dry_run: boolean }
+): Promise<DeleteFileResult> => {
   try {
     const absPath = resolveWithinRoot(cfg.rootPath, filePath)
     const rel = relativeFromRoot(cfg.rootPath, absPath)
     if (!isInScope(rel, cfg.zones)) {
-      return errorResult('deleting file', new Error(outOfScopeError(cfg.zones)))
+      throw new Error(outOfScopeError(cfg.zones))
     }
     if (isProtectedPath(rel)) {
-      return errorResult('deleting file', new Error(`Path is protected: "${filePath}"`))
+      throw new Error(`Path is protected: "${filePath}"`)
     }
     await assertRealPathWithinRoot(cfg.rootPath, absPath)
     const stat = await fs.stat(absPath)
     if (!stat.isFile()) {
-      return errorResult('deleting file', new Error(`Not a file: "${filePath}"`))
+      throw new Error(`Not a file: "${filePath}"`)
     }
     if (dry_run) {
-      return jsonResult({ dry_run: true, action: `would delete (${stat.size} bytes)`, path: filePath })
+      return { dry_run: true, deleted: false, action: `would delete (${stat.size} bytes)`, path: filePath, bytes: stat.size }
     }
     await fs.unlink(absPath)
-    return jsonResult({ deleted: true, path: filePath, bytes: stat.size })
+    return { dry_run: false, deleted: true, action: `deleted (${stat.size} bytes)`, path: filePath, bytes: stat.size }
   } catch (err) {
     if (isNodeError(err) && err.code === 'ENOENT') {
-      return errorResult('deleting file', new Error(`File not found: "${filePath}"`))
+      throw new Error(`File not found: "${filePath}"`)
     }
-    return errorResult('deleting file', err)
+    throw err
   }
 }

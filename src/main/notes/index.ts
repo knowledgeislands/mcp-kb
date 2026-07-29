@@ -8,13 +8,19 @@
  *
  * Every entry point takes `Config` as its first argument — the KB root and all
  * other settings are injected, never read from a module singleton.
+ *
+ * Layer boundary: every function here returns **plain data** and signals failure
+ * by throwing. Mapping to an MCP envelope (`jsonResult` / `errorResult`) is the
+ * job of the thin `src/tools/` layer.
  */
 import { randomUUID } from 'node:crypto'
+import type { Stats } from 'node:fs'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import { z } from 'zod'
 import type { Config } from '../../config/index.js'
 import { isProtectedPath } from '../../utils/protected.js'
-import { assertRealPathWithinRoot, errorResult, isNodeError, resolveWithinRoot } from '../../utils/utils.js'
+import { assertRealPathWithinRoot, isNodeError, resolveWithinRoot } from '../../utils/utils.js'
 import { isInScope, outOfScopeError } from '../../utils/zones.js'
 import { collectFolders, collectNotes, relativeFromRoot } from '../shared.js'
 
@@ -22,10 +28,30 @@ const NOTE_EXT = '.md'
 
 const isNote = (basename: string): boolean => basename.endsWith(NOTE_EXT)
 
-const textResult = (text: string) => ({ content: [{ type: 'text' as const, text }] })
-
 // Which slice of a note `readNote` returns.
 export type NotePart = 'all' | 'frontmatter' | 'body'
+
+export type ReadNoteResult = { path: string; part: NotePart; content: string }
+export type ListNotesResult = { path: string; recursive: boolean; count: number; notes: string[] }
+export type ListFoldersResult = { path: string; recursive: boolean; count: number; folders: string[] }
+export type RenameNoteResult = { from: string; to: string }
+export type DeleteNoteResult = { path: string; bytes: number; deleted: boolean; dry_run: boolean; action: string }
+export type WriteNoteResult = { path: string; bytes: number; dry_run: boolean; action: string }
+
+/**
+ * Shape of the value `createFolder` resolves to, and — via the same schema —
+ * the `outputSchema` declared by the `kb_folder_create` tool, so the declared
+ * schema and the emitted `structuredContent` cannot drift.
+ */
+export const createFolderResultSchema = z
+  .object({
+    path: z.string().describe('The KB-relative folder path that was requested.'),
+    existed: z.boolean().describe('True when the folder already existed before the call.'),
+    created: z.boolean().describe('True when this call created the folder.')
+  })
+  .strict()
+
+export type CreateFolderResult = z.infer<typeof createFolderResultSchema>
 
 // Split a note into its YAML frontmatter (the lines between the leading `---`
 // fences, fences excluded) and the body after the closing fence. `frontmatter`
@@ -43,98 +69,88 @@ const splitFrontmatter = (content: string): FrontmatterSplit => {
   return { frontmatter: null, body: content, malformed: true }
 }
 
-export const readNote = async (cfg: Config, { path: notePath, part = 'all' }: { path: string; part?: NotePart }) => {
+export const readNote = async (
+  cfg: Config,
+  { path: notePath, part = 'all' }: { path: string; part?: NotePart }
+): Promise<ReadNoteResult> => {
   if (!isNote(notePath)) {
-    return errorResult('reading note', new Error(`Notes must end in "${NOTE_EXT}": "${notePath}"`))
+    throw new Error(`Notes must end in "${NOTE_EXT}": "${notePath}"`)
   }
   try {
     const absPath = resolveWithinRoot(cfg.rootPath, notePath)
     const rel = relativeFromRoot(cfg.rootPath, absPath)
     if (!isInScope(rel, cfg.zones)) {
-      return errorResult('reading note', new Error(outOfScopeError(cfg.zones)))
+      throw new Error(outOfScopeError(cfg.zones))
     }
     if (isProtectedPath(rel)) {
-      return errorResult('reading note', new Error(`Path is protected: "${notePath}"`))
+      throw new Error(`Path is protected: "${notePath}"`)
     }
     await assertRealPathWithinRoot(cfg.rootPath, absPath)
     const stat = await fs.stat(absPath)
     if (!stat.isFile()) {
-      return errorResult('reading note', new Error(`Not a note file: "${notePath}"`))
+      throw new Error(`Not a note file: "${notePath}"`)
     }
     const content = await fs.readFile(absPath, 'utf-8')
-    if (part === 'all') return textResult(content)
+    if (part === 'all') return { path: notePath, part, content }
     const split = splitFrontmatter(content)
     if (split.malformed) {
-      return errorResult('reading note', new Error(`Malformed frontmatter in "${notePath}": opening "---" has no closing "---"`))
+      throw new Error(`Malformed frontmatter in "${notePath}": opening "---" has no closing "---"`)
     }
-    if (part === 'frontmatter') return textResult(split.frontmatter ?? '(no frontmatter)')
-    return textResult(split.body)
+    if (part === 'frontmatter') return { path: notePath, part, content: split.frontmatter ?? '(no frontmatter)' }
+    return { path: notePath, part, content: split.body }
   } catch (err) {
     if (isNodeError(err) && err.code === 'ENOENT') {
-      return errorResult('reading note', new Error(`File not found: "${notePath}"`))
+      throw new Error(`File not found: "${notePath}"`)
     }
-    return errorResult('reading note', err)
+    throw err
   }
 }
 
-export const listNotes = async (cfg: Config, { path: dirPath, recursive }: { path: string; recursive: boolean }) => {
-  try {
-    const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
-    const rel = relativeFromRoot(cfg.rootPath, absDir)
-    if (rel && !isInScope(rel, cfg.zones)) {
-      return errorResult('listing notes', new Error(outOfScopeError(cfg.zones)))
-    }
-    if (isProtectedPath(rel)) {
-      return errorResult('listing notes', new Error(`Path is protected: "${dirPath}"`))
-    }
-    await assertRealPathWithinRoot(cfg.rootPath, absDir)
-    const notes = await collectNotes(cfg.rootPath, absDir, recursive)
-    const relative = notes.map((p) => path.relative(cfg.rootPath, p))
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: relative.length === 0 ? '(no notes found)' : relative.join('\n')
-        }
-      ]
-    }
-  } catch (err) {
-    return errorResult('listing notes', err)
+export const listNotes = async (
+  cfg: Config,
+  { path: dirPath, recursive }: { path: string; recursive: boolean }
+): Promise<ListNotesResult> => {
+  const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
+  const rel = relativeFromRoot(cfg.rootPath, absDir)
+  if (rel && !isInScope(rel, cfg.zones)) {
+    throw new Error(outOfScopeError(cfg.zones))
   }
+  if (isProtectedPath(rel)) {
+    throw new Error(`Path is protected: "${dirPath}"`)
+  }
+  await assertRealPathWithinRoot(cfg.rootPath, absDir)
+  const notes = await collectNotes(cfg.rootPath, absDir, recursive)
+  const relative = notes.map((p) => path.relative(cfg.rootPath, p))
+  return { path: dirPath, recursive, count: relative.length, notes: relative }
 }
 
-export const listFolders = async (cfg: Config, { path: dirPath, recursive }: { path: string; recursive: boolean }) => {
-  try {
-    const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
-    const rel = relativeFromRoot(cfg.rootPath, absDir)
-    if (rel && !isInScope(rel, cfg.zones)) {
-      return errorResult('listing folders', new Error(outOfScopeError(cfg.zones)))
-    }
-    if (isProtectedPath(rel)) {
-      return errorResult('listing folders', new Error(`Path is protected: "${dirPath}"`))
-    }
-    await assertRealPathWithinRoot(cfg.rootPath, absDir)
-    const folders = await collectFolders(cfg.rootPath, absDir, recursive)
-    const relative = folders.map((p) => path.relative(cfg.rootPath, p))
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: relative.length === 0 ? '(no folders found)' : relative.join('\n')
-        }
-      ]
-    }
-  } catch (err) {
-    return errorResult('listing folders', err)
+export const listFolders = async (
+  cfg: Config,
+  { path: dirPath, recursive }: { path: string; recursive: boolean }
+): Promise<ListFoldersResult> => {
+  const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
+  const rel = relativeFromRoot(cfg.rootPath, absDir)
+  if (rel && !isInScope(rel, cfg.zones)) {
+    throw new Error(outOfScopeError(cfg.zones))
   }
+  if (isProtectedPath(rel)) {
+    throw new Error(`Path is protected: "${dirPath}"`)
+  }
+  await assertRealPathWithinRoot(cfg.rootPath, absDir)
+  const folders = await collectFolders(cfg.rootPath, absDir, recursive)
+  const relative = folders.map((p) => path.relative(cfg.rootPath, p))
+  return { path: dirPath, recursive, count: relative.length, folders: relative }
 }
 
-export const renameNote = async (cfg: Config, { from, to, create_dirs }: { from: string; to: string; create_dirs: boolean }) => {
+export const renameNote = async (
+  cfg: Config,
+  { from, to, create_dirs }: { from: string; to: string; create_dirs: boolean }
+): Promise<RenameNoteResult> => {
   if (!isNote(from)) {
-    return errorResult('renaming note', new Error(`Notes must end in "${NOTE_EXT}": "${from}"`))
+    throw new Error(`Notes must end in "${NOTE_EXT}": "${from}"`)
   }
   if (!isNote(to)) {
-    return errorResult('renaming note', new Error(`Notes must end in "${NOTE_EXT}": "${to}"`))
+    throw new Error(`Notes must end in "${NOTE_EXT}": "${to}"`)
   }
   try {
     const absFrom = resolveWithinRoot(cfg.rootPath, from)
@@ -142,138 +158,125 @@ export const renameNote = async (cfg: Config, { from, to, create_dirs }: { from:
     const relFrom = relativeFromRoot(cfg.rootPath, absFrom)
     const relTo = relativeFromRoot(cfg.rootPath, absTo)
     if (!isInScope(relFrom, cfg.zones)) {
-      return errorResult('renaming note', new Error(outOfScopeError(cfg.zones)))
+      throw new Error(outOfScopeError(cfg.zones))
     }
     if (!isInScope(relTo, cfg.zones)) {
-      return errorResult('renaming note', new Error(outOfScopeError(cfg.zones)))
+      throw new Error(outOfScopeError(cfg.zones))
     }
     if (isProtectedPath(relFrom)) {
-      return errorResult('renaming note', new Error(`Path is protected: "${from}"`))
+      throw new Error(`Path is protected: "${from}"`)
     }
     if (isProtectedPath(relTo)) {
-      return errorResult('renaming note', new Error(`Path is protected: "${to}"`))
+      throw new Error(`Path is protected: "${to}"`)
     }
     if (absFrom === absTo) {
-      return errorResult('renaming note', new Error(`Rename source and destination are the same path: "${from}"`))
+      throw new Error(`Rename source and destination are the same path: "${from}"`)
     }
     await assertRealPathWithinRoot(cfg.rootPath, absFrom)
     const fromStat = await fs.stat(absFrom)
     if (!fromStat.isFile()) {
-      return errorResult('renaming note', new Error(`Not a note file: "${from}"`))
+      throw new Error(`Not a note file: "${from}"`)
     }
     await assertRealPathWithinRoot(cfg.rootPath, absTo)
     if (create_dirs) {
       await fs.mkdir(path.dirname(absTo), { recursive: true })
     }
+    let destinationExists = false
     try {
       await fs.access(absTo)
-      return errorResult('renaming note', new Error(`Destination already exists: "${to}" (rename is non-destructive)`))
+      destinationExists = true
     } catch (err) {
       if (!(isNodeError(err) && err.code === 'ENOENT')) throw err
     }
-    await fs.rename(absFrom, absTo)
-    return {
-      content: [{ type: 'text' as const, text: `Renamed: "${from}" → "${to}"` }]
+    if (destinationExists) {
+      throw new Error(`Destination already exists: "${to}" (rename is non-destructive)`)
     }
+    await fs.rename(absFrom, absTo)
+    return { from, to }
   } catch (err) {
     if (isNodeError(err) && err.code === 'ENOENT') {
-      return errorResult(
-        'renaming note',
-        new Error(`File not found: "${from}" — or destination parent missing for "${to}" (set create_dirs: true)`)
-      )
+      throw new Error(`File not found: "${from}" — or destination parent missing for "${to}" (set create_dirs: true)`)
     }
-    return errorResult('renaming note', err)
+    throw err
   }
 }
 
-export const deleteNote = async (cfg: Config, { path: notePath, dry_run }: { path: string; dry_run: boolean }) => {
+export const deleteNote = async (
+  cfg: Config,
+  { path: notePath, dry_run }: { path: string; dry_run: boolean }
+): Promise<DeleteNoteResult> => {
   if (!isNote(notePath)) {
-    return errorResult('deleting note', new Error(`Notes must end in "${NOTE_EXT}": "${notePath}"`))
+    throw new Error(`Notes must end in "${NOTE_EXT}": "${notePath}"`)
   }
   try {
     const absPath = resolveWithinRoot(cfg.rootPath, notePath)
     const rel = relativeFromRoot(cfg.rootPath, absPath)
     if (!isInScope(rel, cfg.zones)) {
-      return errorResult('deleting note', new Error(outOfScopeError(cfg.zones)))
+      throw new Error(outOfScopeError(cfg.zones))
     }
     if (isProtectedPath(rel)) {
-      return errorResult('deleting note', new Error(`Path is protected: "${notePath}"`))
+      throw new Error(`Path is protected: "${notePath}"`)
     }
     await assertRealPathWithinRoot(cfg.rootPath, absPath)
     const stat = await fs.stat(absPath)
     if (!stat.isFile()) {
-      return errorResult('deleting note', new Error(`Not a note file: "${notePath}"`))
+      throw new Error(`Not a note file: "${notePath}"`)
     }
     if (dry_run) {
-      return {
-        content: [{ type: 'text' as const, text: `[dry_run] would delete (${stat.size} bytes): "${notePath}"` }]
-      }
+      return { path: notePath, bytes: stat.size, deleted: false, dry_run: true, action: `would delete (${stat.size} bytes)` }
     }
     await fs.unlink(absPath)
-    return {
-      content: [{ type: 'text' as const, text: `Deleted: "${notePath}" (${stat.size} bytes)` }]
-    }
+    return { path: notePath, bytes: stat.size, deleted: true, dry_run: false, action: `deleted (${stat.size} bytes)` }
   } catch (err) {
     if (isNodeError(err) && err.code === 'ENOENT') {
-      return errorResult('deleting note', new Error(`File not found: "${notePath}"`))
+      throw new Error(`File not found: "${notePath}"`)
     }
-    return errorResult('deleting note', err)
+    throw err
   }
 }
 
-export const createFolder = async (cfg: Config, { path: dirPath }: { path: string }) => {
+export const createFolder = async (cfg: Config, { path: dirPath }: { path: string }): Promise<CreateFolderResult> => {
   if (!dirPath) {
-    return errorResult('creating folder', new Error('Folder path must not be empty'))
+    throw new Error('Folder path must not be empty')
   }
+  const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
+  const rel = relativeFromRoot(cfg.rootPath, absDir)
+  if (!isInScope(rel, cfg.zones)) {
+    throw new Error(outOfScopeError(cfg.zones))
+  }
+  if (isProtectedPath(rel)) {
+    throw new Error(`Path is protected: "${dirPath}"`)
+  }
+  await assertRealPathWithinRoot(cfg.rootPath, absDir)
+  let existing: Stats | null = null
   try {
-    const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
-    const rel = relativeFromRoot(cfg.rootPath, absDir)
-    if (!isInScope(rel, cfg.zones)) {
-      return errorResult('creating folder', new Error(outOfScopeError(cfg.zones)))
-    }
-    if (isProtectedPath(rel)) {
-      return errorResult('creating folder', new Error(`Path is protected: "${dirPath}"`))
-    }
-    await assertRealPathWithinRoot(cfg.rootPath, absDir)
-    let existed = false
-    try {
-      const stat = await fs.stat(absDir)
-      if (stat.isFile()) {
-        return errorResult('creating folder', new Error(`Path exists as a file, not a folder: "${dirPath}"`))
-      }
-      existed = stat.isDirectory()
-    } catch (err) {
-      if (!(isNodeError(err) && err.code === 'ENOENT')) throw err
-    }
-    await fs.mkdir(absDir, { recursive: true })
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: existed ? `Folder already exists: "${dirPath}"` : `Created folder: "${dirPath}"`
-        }
-      ]
-    }
+    existing = await fs.stat(absDir)
   } catch (err) {
-    return errorResult('creating folder', err)
+    if (!(isNodeError(err) && err.code === 'ENOENT')) throw err
   }
+  if (existing?.isFile()) {
+    throw new Error(`Path exists as a file, not a folder: "${dirPath}"`)
+  }
+  const existed = existing?.isDirectory() === true
+  await fs.mkdir(absDir, { recursive: true })
+  return { path: dirPath, existed, created: !existed }
 }
 
 export const writeNote = async (
   cfg: Config,
   { path: notePath, content, create_dirs, dry_run }: { path: string; content: string; create_dirs: boolean; dry_run: boolean }
-) => {
+): Promise<WriteNoteResult> => {
   if (!isNote(notePath)) {
-    return errorResult('writing note', new Error(`Notes must end in "${NOTE_EXT}": "${notePath}"`))
+    throw new Error(`Notes must end in "${NOTE_EXT}": "${notePath}"`)
   }
   try {
     const absPath = resolveWithinRoot(cfg.rootPath, notePath)
     const rel = relativeFromRoot(cfg.rootPath, absPath)
     if (!isInScope(rel, cfg.zones)) {
-      return errorResult('writing note', new Error(outOfScopeError(cfg.zones)))
+      throw new Error(outOfScopeError(cfg.zones))
     }
     if (isProtectedPath(rel)) {
-      return errorResult('writing note', new Error(`Path is protected: "${notePath}"`))
+      throw new Error(`Path is protected: "${notePath}"`)
     }
     // Realpath-guard BEFORE creating any directory — a symlinked ancestor must be
     // caught before `mkdir -p` can materialise dirs at its target.
@@ -293,25 +296,18 @@ export const writeNote = async (
         if (!(isNodeError(err) && err.code === 'ENOENT')) throw err
       }
       const action = exists ? `would overwrite (${existingBytes} → ${bytes} bytes)` : `would create (${bytes} bytes)`
-      return {
-        content: [{ type: 'text' as const, text: `[dry_run] ${action}: "${notePath}"` }]
-      }
+      return { path: notePath, bytes, dry_run: true, action }
     }
     // Atomic write: write a sibling temp file then rename over the target, so a
     // crash mid-write can't leave a note half-rewritten. rename() is atomic within a dir.
     const tmpPath = `${absPath}.${randomUUID()}.tmp`
     await fs.writeFile(tmpPath, content, 'utf-8')
     await fs.rename(tmpPath, absPath)
-    return {
-      content: [{ type: 'text' as const, text: `Written: "${notePath}" (${bytes} bytes)` }]
-    }
+    return { path: notePath, bytes, dry_run: false, action: `wrote (${bytes} bytes)` }
   } catch (err) {
     if (isNodeError(err) && err.code === 'ENOENT') {
-      return errorResult(
-        'writing note',
-        new Error(`Directory not found for: "${notePath}" — set create_dirs: true to create it automatically`)
-      )
+      throw new Error(`Directory not found for: "${notePath}" — set create_dirs: true to create it automatically`)
     }
-    return errorResult('writing note', err)
+    throw err
   }
 }

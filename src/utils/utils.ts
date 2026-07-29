@@ -48,20 +48,6 @@ export const assertRealPathWithinRoot = async (root: string, absPath: string): P
   }
 }
 
-export const errorResult = (action: string, error: unknown) => {
-  return {
-    isError: true as const,
-    content: [{ type: 'text' as const, text: `Error ${action}: ${errMessage(error)}` }]
-  }
-}
-
-export const jsonResult = (payload: unknown) => {
-  return {
-    structuredContent: payload as Record<string, unknown>,
-    content: [{ type: 'text' as const, text: JSON.stringify(payload, null, 2) }]
-  }
-}
-
 export const isNodeError = (err: unknown): err is NodeJS.ErrnoException => {
   return err instanceof Error && 'code' in err
 }

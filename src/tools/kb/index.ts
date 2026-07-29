@@ -4,6 +4,7 @@ import type { Config } from '../../config/index.js'
 import * as files from '../../main/files/index.js'
 import * as notes from '../../main/notes/index.js'
 import { DESTRUCTIVE, READ_ONLY, WRITE, WRITE_IDEMPOTENT } from '../../utils/annotations.js'
+import { errorResult, jsonResult } from '../../utils/results.js'
 
 const NO_TRAVERSAL_MSG = 'Must be a KB-relative path: no ".." segments, no leading "/", no leading "~", no null bytes'
 
@@ -35,6 +36,69 @@ const listInputSchema = z
 
 export const registerKbTools = (server: McpServer, cfg: Config): void => {
   server.registerTool(
+    'kb_delete',
+    {
+      title: 'Delete KB Content',
+      description:
+        'Delete a file from a declared KB zone or staging root. dry_run defaults to true; root-file allow-list entries are never deletable.',
+      inputSchema: z
+        .object({
+          path: filePathArg('KB-relative file path in a declared zone or staging root.'),
+          dry_run: z.boolean().default(true).describe('Preview without deleting. Default true.')
+        })
+        .strict(),
+      outputSchema: files.deleteFileResultSchema,
+      annotations: DESTRUCTIVE
+    },
+    async (args) => {
+      try {
+        return jsonResult(await files.deleteFile(cfg, args))
+      } catch (err) {
+        return errorResult('deleting file', err)
+      }
+    }
+  )
+
+  server.registerTool(
+    'kb_folder_create',
+    {
+      title: 'Create KB Folder',
+      description: 'Create a folder in a declared KB zone or staging root. Idempotent: succeeds when the folder already exists.',
+      inputSchema: z.object({ path: filePathArg('KB-relative folder path in a declared zone or staging root.') }).strict(),
+      outputSchema: notes.createFolderResultSchema,
+      annotations: WRITE_IDEMPOTENT
+    },
+    async (args) => {
+      try {
+        return jsonResult(await notes.createFolder(cfg, args))
+      } catch (err) {
+        return errorResult('creating folder', err)
+      }
+    }
+  )
+
+  server.registerTool(
+    'kb_list',
+    {
+      title: 'List KB Content',
+      description: `List files, folders, or Markdown notes under one declared zone or staging root.
+
+Returns a JSON object with entries and count. The KB root and configured
+root-file allow-list are never listable.`,
+      inputSchema: listInputSchema,
+      outputSchema: files.listContentResultSchema,
+      annotations: READ_ONLY
+    },
+    async (args) => {
+      try {
+        return jsonResult(await files.listContent(cfg, args))
+      } catch (err) {
+        return errorResult('listing content', err)
+      }
+    }
+  )
+
+  server.registerTool(
     'kb_read',
     {
       title: 'Read KB Content',
@@ -53,23 +117,40 @@ The exception neither lists the root nor permits writes.`,
             .describe('For UTF-8 Markdown only: whole file, YAML frontmatter, or body. Default all.')
         })
         .strict(),
+      outputSchema: files.readFileResultSchema,
       annotations: READ_ONLY
     },
-    (args) => files.readFile(cfg, args)
+    async (args) => {
+      try {
+        return jsonResult(await files.readFile(cfg, args))
+      } catch (err) {
+        return errorResult('reading file', err)
+      }
+    }
   )
 
   server.registerTool(
-    'kb_list',
+    'kb_rename',
     {
-      title: 'List KB Content',
-      description: `List files, folders, or Markdown notes under one declared zone or staging root.
-
-Returns a JSON object with entries and count. The KB root and configured
-root-file allow-list are never listable.`,
-      inputSchema: listInputSchema,
-      annotations: READ_ONLY
+      title: 'Rename KB Content',
+      description: 'Rename or move a file within declared KB zones or staging roots. Refuses to overwrite an existing destination.',
+      inputSchema: z
+        .object({
+          from: filePathArg('Current KB-relative file path.'),
+          to: filePathArg('New KB-relative file path.'),
+          create_dirs: z.boolean().default(true).describe('Create destination parent directories. Default true.')
+        })
+        .strict(),
+      outputSchema: files.renameFileResultSchema,
+      annotations: WRITE
     },
-    (args) => files.listContent(cfg, args)
+    async (args) => {
+      try {
+        return jsonResult(await files.renameFile(cfg, args))
+      } catch (err) {
+        return errorResult('renaming file', err)
+      }
+    }
   )
 
   server.registerTool(
@@ -92,53 +173,15 @@ defaults to true. Root-file allow-list entries are never writable.`,
           dry_run: z.boolean().default(true).describe('Preview without writing. Default true.')
         })
         .strict(),
+      outputSchema: files.writeFileResultSchema,
       annotations: DESTRUCTIVE
     },
-    (args) => files.writeFile(cfg, args)
-  )
-
-  server.registerTool(
-    'kb_rename',
-    {
-      title: 'Rename KB Content',
-      description: 'Rename or move a file within declared KB zones or staging roots. Refuses to overwrite an existing destination.',
-      inputSchema: z
-        .object({
-          from: filePathArg('Current KB-relative file path.'),
-          to: filePathArg('New KB-relative file path.'),
-          create_dirs: z.boolean().default(true).describe('Create destination parent directories. Default true.')
-        })
-        .strict(),
-      annotations: WRITE
-    },
-    (args) => files.renameFile(cfg, args)
-  )
-
-  server.registerTool(
-    'kb_delete',
-    {
-      title: 'Delete KB Content',
-      description:
-        'Delete a file from a declared KB zone or staging root. dry_run defaults to true; root-file allow-list entries are never deletable.',
-      inputSchema: z
-        .object({
-          path: filePathArg('KB-relative file path in a declared zone or staging root.'),
-          dry_run: z.boolean().default(true).describe('Preview without deleting. Default true.')
-        })
-        .strict(),
-      annotations: DESTRUCTIVE
-    },
-    (args) => files.deleteFile(cfg, args)
-  )
-
-  server.registerTool(
-    'kb_folder_create',
-    {
-      title: 'Create KB Folder',
-      description: 'Create a folder in a declared KB zone or staging root. Idempotent: succeeds when the folder already exists.',
-      inputSchema: z.object({ path: filePathArg('KB-relative folder path in a declared zone or staging root.') }).strict(),
-      annotations: WRITE_IDEMPOTENT
-    },
-    (args) => notes.createFolder(cfg, args)
+    async (args) => {
+      try {
+        return jsonResult(await files.writeFile(cfg, args))
+      } catch (err) {
+        return errorResult('writing file', err)
+      }
+    }
   )
 }

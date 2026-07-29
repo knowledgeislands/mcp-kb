@@ -1,8 +1,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { Config } from '../../config/index.js'
-import { readKbConfig } from '../../main/config/index.js'
+import { kbConfigResultSchema, readKbConfig } from '../../main/config/index.js'
 import { READ_ONLY } from '../../utils/annotations.js'
+import { errorResult, jsonResult } from '../../utils/results.js'
 
 export const registerConfigTools = (server: McpServer, cfg: Config): void => {
   server.registerTool(
@@ -26,8 +27,15 @@ Takes no parameters. Returns a JSON object with:
 - kiConfigPresent (boolean)
 - kiConfigRaw (string — raw TOML or "(absent — all zones are defaults)")`,
       inputSchema: z.object({}).strict(),
+      outputSchema: kbConfigResultSchema,
       annotations: READ_ONLY
     },
-    () => readKbConfig(cfg)
+    () => {
+      try {
+        return jsonResult(readKbConfig(cfg))
+      } catch (err) {
+        return errorResult('reading KB config', err)
+      }
+    }
   )
 }
