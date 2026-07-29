@@ -1,6 +1,6 @@
 ---
 id: MCP-KBFS-TOOL-001
-title: Add conditional writes via etag for kb_note_write
+title: Add conditional writes via etag for kb_write
 theme: tool-surface
 horizon: next
 status: open
@@ -11,7 +11,7 @@ baseline-ref: null
 
 ## Context
 
-Redesign `kb_note_write` around optional optimistic locking: return an `etag` from `kb_note_read`, accept an `if_match` write argument, and refuse stale writes.
+Redesign `kb_write` around optional optimistic locking: return an `etag` from `kb_read`, accept an `if_match` write argument, and refuse stale writes.
 
 ## Boundary
 
