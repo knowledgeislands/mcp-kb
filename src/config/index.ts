@@ -159,9 +159,7 @@ const isRootFileAllowlistPath = (value: string): boolean => {
 const parseRootFileAllowlist = (value: unknown): readonly string[] => {
   if (value === undefined) return [...DEFAULT_ROOT_FILE_ALLOWLIST]
   if (!Array.isArray(value) || !value.every((entry) => typeof entry === 'string' && isRootFileAllowlistPath(entry))) {
-    throw new Error(
-      '.ki-config.toml root_file_allowlist must be an array of exact, non-empty KB-relative paths without traversal or backslashes.'
-    )
+    throw new Error('.ki-config.toml root_file_allowlist must be an array of exact, non-empty KB-relative paths without traversal or backslashes.')
   }
   return [...value]
 }
@@ -222,9 +220,7 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     rootPath,
     accessLevel: parseAccessLevel(env.MCP_KI_KB_FS_ACCESS_LEVEL),
     auditLogMode: parseAuditLogMode(env.MCP_KI_KB_FS_AUDIT_LOG),
-    auditLogPath: path.resolve(
-      expandHome(env.MCP_KI_KB_FS_AUDIT_LOG_PATH ?? path.join(os.homedir(), '.local', 'state', 'mcp-ki-kb-fs', 'audit.jsonl'))
-    ),
+    auditLogPath: path.resolve(expandHome(env.MCP_KI_KB_FS_AUDIT_LOG_PATH ?? path.join(os.homedir(), '.local', 'state', 'mcp-ki-kb-fs', 'audit.jsonl'))),
     auditLogMaxBytes: parseNonNegativeInt(env.MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES, 10 * 1024 * 1024, 'MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES'),
     auditLogKeep: parseNonNegativeInt(env.MCP_KI_KB_FS_AUDIT_LOG_KEEP, 5, 'MCP_KI_KB_FS_AUDIT_LOG_KEEP'),
     zones,

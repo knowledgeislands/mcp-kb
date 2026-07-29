@@ -151,10 +151,7 @@ const splitFrontmatter = (content: string): FrontmatterSplit => {
   return { frontmatter: null, body: content, malformed: true }
 }
 
-export const readFile = async (
-  cfg: Config,
-  { path: filePath, part = 'all' }: { path: string; part?: ReadPart }
-): Promise<ReadFileResult> => {
+export const readFile = async (cfg: Config, { path: filePath, part = 'all' }: { path: string; part?: ReadPart }): Promise<ReadFileResult> => {
   try {
     const absPath = resolveWithinRoot(cfg.rootPath, filePath)
     const rel = relativeFromRoot(cfg.rootPath, absPath).split(path.sep).join('/')
@@ -305,10 +302,7 @@ export const writeFile = async (
   }
 }
 
-export const renameFile = async (
-  cfg: Config,
-  { from, to, create_dirs }: { from: string; to: string; create_dirs: boolean }
-): Promise<RenameFileResult> => {
+export const renameFile = async (cfg: Config, { from, to, create_dirs }: { from: string; to: string; create_dirs: boolean }): Promise<RenameFileResult> => {
   try {
     const absFrom = resolveWithinRoot(cfg.rootPath, from)
     const absTo = resolveWithinRoot(cfg.rootPath, to)
@@ -358,10 +352,7 @@ export const renameFile = async (
   }
 }
 
-export const deleteFile = async (
-  cfg: Config,
-  { path: filePath, dry_run }: { path: string; dry_run: boolean }
-): Promise<DeleteFileResult> => {
+export const deleteFile = async (cfg: Config, { path: filePath, dry_run }: { path: string; dry_run: boolean }): Promise<DeleteFileResult> => {
   try {
     const absPath = resolveWithinRoot(cfg.rootPath, filePath)
     const rel = relativeFromRoot(cfg.rootPath, absPath)

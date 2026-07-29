@@ -28,10 +28,7 @@ export const kbConfigResultSchema = z
       })
       .strict()
       .describe('Top-level folder name resolved for each canonical KB zone.'),
-    staging: z
-      .object({ inbound: z.string(), outbound: z.string() })
-      .strict()
-      .describe('Folder names of the inbound (+) and outbound (-) staging areas.'),
+    staging: z.object({ inbound: z.string(), outbound: z.string() }).strict().describe('Folder names of the inbound (+) and outbound (-) staging areas.'),
     rootFileAllowlist: z.array(z.string()).describe('Exact root-relative paths readable through kb_read; never writable.'),
     kiConfigPresent: z.boolean().describe('True when a .ki-config.toml was found at KB root on server startup.'),
     kiConfigRaw: z.string().describe('Raw .ki-config.toml text, or a placeholder when the file is absent.')

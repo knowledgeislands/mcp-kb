@@ -76,31 +76,23 @@ describe('listFolders — protected path check (line 113)', () => {
 
 describe('renameNote — non-.md from path (line 133)', () => {
   it('rejects a .txt from path with "Notes must end in .md"', async () => {
-    await expect(renameNote(cfg, { from: `${ZONE}/note.txt`, to: `${ZONE}/note.md`, create_dirs: false })).rejects.toThrow(
-      'Notes must end in ".md"'
-    )
+    await expect(renameNote(cfg, { from: `${ZONE}/note.txt`, to: `${ZONE}/note.md`, create_dirs: false })).rejects.toThrow('Notes must end in ".md"')
   })
 })
 
 describe('renameNote — from path outside zone (line 144)', () => {
   it('returns out-of-scope error when from is outside zones', async () => {
-    await expect(renameNote(cfg, { from: 'UnknownZone/src.md', to: `${ZONE}/dst.md`, create_dirs: false })).rejects.toThrow(
-      'outside KB zones'
-    )
+    await expect(renameNote(cfg, { from: 'UnknownZone/src.md', to: `${ZONE}/dst.md`, create_dirs: false })).rejects.toThrow('outside KB zones')
   })
 })
 
 describe('writeNote — non-.md path rejection (line 266)', () => {
   it('rejects a .txt path with "Notes must end in .md"', async () => {
-    await expect(writeNote(cfg, { path: `${ZONE}/note.txt`, content: 'x', create_dirs: false, dry_run: false })).rejects.toThrow(
-      'Notes must end in ".md"'
-    )
+    await expect(writeNote(cfg, { path: `${ZONE}/note.txt`, content: 'x', create_dirs: false, dry_run: false })).rejects.toThrow('Notes must end in ".md"')
   })
 
   it('rejects a path with no extension', async () => {
-    await expect(writeNote(cfg, { path: `${ZONE}/README`, content: 'x', create_dirs: false, dry_run: false })).rejects.toThrow(
-      'Notes must end in ".md"'
-    )
+    await expect(writeNote(cfg, { path: `${ZONE}/README`, content: 'x', create_dirs: false, dry_run: false })).rejects.toThrow('Notes must end in ".md"')
   })
 })
 
@@ -135,17 +127,13 @@ describe('deleteNote — out-of-scope path (line 196)', () => {
 describe('renameNote — destination outside zone (line 147)', () => {
   it('returns out-of-scope error when the destination is outside zones', async () => {
     await fs.writeFile(zp('src.md'), 'x', 'utf-8')
-    await expect(renameNote(cfg, { from: `${ZONE}/src.md`, to: 'UnknownZone/dst.md', create_dirs: true })).rejects.toThrow(
-      'outside KB zones'
-    )
+    await expect(renameNote(cfg, { from: `${ZONE}/src.md`, to: 'UnknownZone/dst.md', create_dirs: true })).rejects.toThrow('outside KB zones')
   })
 })
 
 describe('renameNote — protected from path (line 150)', () => {
   it('returns "Path is protected" for a dotfile source', async () => {
-    await expect(renameNote(cfg, { from: `${ZONE}/.secret.md`, to: `${ZONE}/dst.md`, create_dirs: true })).rejects.toThrow(
-      'Path is protected'
-    )
+    await expect(renameNote(cfg, { from: `${ZONE}/.secret.md`, to: `${ZONE}/dst.md`, create_dirs: true })).rejects.toThrow('Path is protected')
   })
 })
 

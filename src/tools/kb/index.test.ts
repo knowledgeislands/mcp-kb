@@ -84,15 +84,7 @@ afterAll(async () => {
 
 describe('tool surface', () => {
   it('registers exactly the seven documented tools', () => {
-    expect(allTools().map((tool) => tool.name)).toEqual([
-      'kb_config',
-      'kb_delete',
-      'kb_folder_create',
-      'kb_list',
-      'kb_read',
-      'kb_rename',
-      'kb_write'
-    ])
+    expect(allTools().map((tool) => tool.name)).toEqual(['kb_config', 'kb_delete', 'kb_folder_create', 'kb_list', 'kb_read', 'kb_rename', 'kb_write'])
   })
 
   it('registers tools in ascending alphabetical order within each group', () => {

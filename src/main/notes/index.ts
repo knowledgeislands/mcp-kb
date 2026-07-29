@@ -69,10 +69,7 @@ const splitFrontmatter = (content: string): FrontmatterSplit => {
   return { frontmatter: null, body: content, malformed: true }
 }
 
-export const readNote = async (
-  cfg: Config,
-  { path: notePath, part = 'all' }: { path: string; part?: NotePart }
-): Promise<ReadNoteResult> => {
+export const readNote = async (cfg: Config, { path: notePath, part = 'all' }: { path: string; part?: NotePart }): Promise<ReadNoteResult> => {
   if (!isNote(notePath)) {
     throw new Error(`Notes must end in "${NOTE_EXT}": "${notePath}"`)
   }
@@ -106,10 +103,7 @@ export const readNote = async (
   }
 }
 
-export const listNotes = async (
-  cfg: Config,
-  { path: dirPath, recursive }: { path: string; recursive: boolean }
-): Promise<ListNotesResult> => {
+export const listNotes = async (cfg: Config, { path: dirPath, recursive }: { path: string; recursive: boolean }): Promise<ListNotesResult> => {
   const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
   const rel = relativeFromRoot(cfg.rootPath, absDir)
   if (rel && !isInScope(rel, cfg.zones)) {
@@ -124,10 +118,7 @@ export const listNotes = async (
   return { path: dirPath, recursive, count: relative.length, notes: relative }
 }
 
-export const listFolders = async (
-  cfg: Config,
-  { path: dirPath, recursive }: { path: string; recursive: boolean }
-): Promise<ListFoldersResult> => {
+export const listFolders = async (cfg: Config, { path: dirPath, recursive }: { path: string; recursive: boolean }): Promise<ListFoldersResult> => {
   const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
   const rel = relativeFromRoot(cfg.rootPath, absDir)
   if (rel && !isInScope(rel, cfg.zones)) {
@@ -142,10 +133,7 @@ export const listFolders = async (
   return { path: dirPath, recursive, count: relative.length, folders: relative }
 }
 
-export const renameNote = async (
-  cfg: Config,
-  { from, to, create_dirs }: { from: string; to: string; create_dirs: boolean }
-): Promise<RenameNoteResult> => {
+export const renameNote = async (cfg: Config, { from, to, create_dirs }: { from: string; to: string; create_dirs: boolean }): Promise<RenameNoteResult> => {
   if (!isNote(from)) {
     throw new Error(`Notes must end in "${NOTE_EXT}": "${from}"`)
   }
@@ -201,10 +189,7 @@ export const renameNote = async (
   }
 }
 
-export const deleteNote = async (
-  cfg: Config,
-  { path: notePath, dry_run }: { path: string; dry_run: boolean }
-): Promise<DeleteNoteResult> => {
+export const deleteNote = async (cfg: Config, { path: notePath, dry_run }: { path: string; dry_run: boolean }): Promise<DeleteNoteResult> => {
   if (!isNote(notePath)) {
     throw new Error(`Notes must end in "${NOTE_EXT}": "${notePath}"`)
   }

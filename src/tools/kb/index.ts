@@ -11,8 +11,7 @@ const NO_TRAVERSAL_MSG = 'Must be a KB-relative path: no ".." segments, no leadi
 const isKbRelative = (value: string): boolean =>
   !value.split(/[\\/]/).includes('..') && !value.startsWith('/') && !value.startsWith('~') && !value.includes('\0')
 
-const filePathArg = (describe: string) =>
-  z.string().min(1, 'Path must not be empty').max(4096).refine(isKbRelative, NO_TRAVERSAL_MSG).describe(describe)
+const filePathArg = (describe: string) => z.string().min(1, 'Path must not be empty').max(4096).refine(isKbRelative, NO_TRAVERSAL_MSG).describe(describe)
 
 const dirPathArg = (describe: string) => filePathArg(describe)
 
@@ -39,8 +38,7 @@ export const registerKbTools = (server: McpServer, cfg: Config): void => {
     'kb_delete',
     {
       title: 'Delete KB Content',
-      description:
-        'Delete a file from a declared KB zone or staging root. dry_run defaults to true; root-file allow-list entries are never deletable.',
+      description: 'Delete a file from a declared KB zone or staging root. dry_run defaults to true; root-file allow-list entries are never deletable.',
       inputSchema: z
         .object({
           path: filePathArg('KB-relative file path in a declared zone or staging root.'),
@@ -111,10 +109,7 @@ The exception neither lists the root nor permits writes.`,
       inputSchema: z
         .object({
           path: filePathArg('KB-relative path, e.g. "Pillars/Finance/Budget.md" or an exact configured root-file path.'),
-          part: z
-            .enum(['all', 'frontmatter', 'body'])
-            .default('all')
-            .describe('For UTF-8 Markdown only: whole file, YAML frontmatter, or body. Default all.')
+          part: z.enum(['all', 'frontmatter', 'body']).default('all').describe('For UTF-8 Markdown only: whole file, YAML frontmatter, or body. Default all.')
         })
         .strict(),
       outputSchema: files.readFileResultSchema,

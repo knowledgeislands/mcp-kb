@@ -50,9 +50,7 @@ const main = async (): Promise<void> => {
   try {
     await fs.access(config.rootPath)
   } catch {
-    console.error(
-      `mcp-ki-kb-fs: MCP_KI_KB_FS_ROOT_PATH not accessible: ${config.rootPath}\nSet MCP_KI_KB_FS_ROOT_PATH to the correct path and restart.`
-    )
+    console.error(`mcp-ki-kb-fs: MCP_KI_KB_FS_ROOT_PATH not accessible: ${config.rootPath}\nSet MCP_KI_KB_FS_ROOT_PATH to the correct path and restart.`)
     return
   }
 
