@@ -5,12 +5,12 @@
  * server or from a standalone script. There is NO module-level config
  * singleton: nothing here is read at import time.
  */
-import { strict as assert } from 'node:assert'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parse as parseToml } from 'smol-toml'
+import { errMessage } from '../utils/utils.js'
 
 const expandHome = (p: string): string => {
   return p.startsWith('~/') ? path.join(os.homedir(), p.slice(2)) : p
@@ -100,20 +100,38 @@ export const DEFAULT_ZONES: ResolvedZones = {
  */
 export const DEFAULT_ROOT_FILE_ALLOWLIST = ['README.md', 'AGENTS.md', 'CLAUDE.md'] as const
 
-export interface Config {
+/**
+ * One declared knowledge base, fully resolved at startup. This — never `Config`
+ * — is what every `src/main/` entry point receives, so no implementation
+ * function can see a second base's root, let alone reach it.
+ */
+export interface KnowledgeBase {
+  /** Caller-facing alias this base is selected by. Never a filesystem path. */
+  alias: string
   /** Absolute KB root. All paths resolve under it and are confined to it. */
   rootPath: string
-  accessLevel: AccessLevel
-  auditLogMode: AuditLogMode
-  auditLogPath: string
-  auditLogMaxBytes: number
-  auditLogKeep: number
   /** Resolved zone → folder-name map, derived from .ki-config.toml or defaults. */
   zones: ResolvedZones
   /** Exact KB-relative paths readable through kb_read. */
   rootFileAllowlist: readonly string[]
   /** Raw .ki-config.toml text if present, null if absent. */
   kiConfigRaw: string | null
+}
+
+export interface Config {
+  /**
+   * Every knowledge base this install may reach, keyed by caller-facing alias
+   * and validated at startup. This map IS the authorisation boundary: an alias
+   * that is not a key here is unreachable, and no tool argument can add one.
+   * A `Map` rather than a plain object so no alias can collide with an
+   * inherited `Object.prototype` key.
+   */
+  knowledgeBases: ReadonlyMap<string, KnowledgeBase>
+  accessLevel: AccessLevel
+  auditLogMode: AuditLogMode
+  auditLogPath: string
+  auditLogMaxBytes: number
+  auditLogKeep: number
 }
 
 const parseAccessLevel = (raw: string | undefined): AccessLevel => {
@@ -204,27 +222,167 @@ const loadKiConfig = (rootPath: string): { zones: ResolvedZones; rootFileAllowli
 }
 
 /**
+ * The knowledge-base declaration: a JSON object mapping caller-facing alias to
+ * the base's absolute (or `~/…`) path, e.g.
+ *
+ *   MCP_KI_KB_FS_KNOWLEDGE_BASES={"kit-pkb":"~/kb/kit-pkb","kit-legal":"/srv/kb/legal"}
+ *
+ * JSON rather than an ad-hoc separator grammar because it survives a single-line
+ * client `env` value, needs no escaping rules of our own for paths containing
+ * spaces, and fails loudly rather than silently mis-splitting.
+ *
+ * This declaration is the install's authorisation boundary, so it is validated
+ * in full here at startup — never lazily on first use. There is deliberately no
+ * `MCP_KI_KB_FS_ROOT_PATH` fallback: a single-base install declares one alias.
+ */
+export const KNOWLEDGE_BASES_ENV_VAR = 'MCP_KI_KB_FS_KNOWLEDGE_BASES'
+
+/**
+ * A safe alias: a leading alphanumeric then letters, digits, dot, dash or
+ * underscore, up to 64 characters. Aliases never take part in path resolution,
+ * but they appear in errors, audit records and the advertised input schema, so
+ * they are held to an identifier shape rather than accepted as free text. The
+ * leading-alphanumeric rule also rules out `__proto__`-shaped keys.
+ */
+const ALIAS_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
+
+const JSON_STRING_LITERAL = /"(?:[^"\\]|\\.)*"/g
+
+/**
+ * Find an alias declared twice. `JSON.parse` silently keeps the last of two
+ * identical keys, so the raw text is re-scanned. By this point the declaration
+ * is known to be a flat object whose every value is a string, so its string
+ * literals alternate key, value, key, value — every even-indexed literal is an
+ * alias.
+ */
+const firstDuplicateAlias = (text: string): string | null => {
+  const literals = text.match(JSON_STRING_LITERAL) ?? []
+  const seen = new Set<string>()
+  for (const [index, literal] of literals.entries()) {
+    if (index % 2 !== 0) continue
+    const alias = JSON.parse(literal) as string
+    if (seen.has(alias)) return alias
+    seen.add(alias)
+  }
+  return null
+}
+
+/** Parse and structurally validate the declaration, before any path is touched. */
+const parseDeclaration = (raw: string | undefined): [alias: string, rawPath: string][] => {
+  const text = raw?.trim()
+  if (!text) {
+    throw new Error(`${KNOWLEDGE_BASES_ENV_VAR} must be set to a JSON object mapping knowledge-base alias to path, e.g. {"kit-pkb":"~/kb/kit-pkb"}.`)
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch (err) {
+    throw new Error(`${KNOWLEDGE_BASES_ENV_VAR} is not valid JSON: ${errMessage(err)}`)
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`${KNOWLEDGE_BASES_ENV_VAR} must be a JSON object mapping knowledge-base alias to path.`)
+  }
+
+  const entries = Object.entries(parsed as Record<string, unknown>)
+  for (const [alias, value] of entries) {
+    if (typeof value !== 'string') {
+      throw new Error(`${KNOWLEDGE_BASES_ENV_VAR} alias "${alias}" must map to a path string.`)
+    }
+  }
+
+  const duplicate = firstDuplicateAlias(text)
+  if (duplicate !== null) {
+    throw new Error(`${KNOWLEDGE_BASES_ENV_VAR} declares alias "${duplicate}" more than once.`)
+  }
+  if (entries.length === 0) {
+    throw new Error(`${KNOWLEDGE_BASES_ENV_VAR} must declare at least one knowledge base.`)
+  }
+
+  return entries as [string, string][]
+}
+
+/**
+ * Resolve one declared entry into a `KnowledgeBase`, failing startup unless the
+ * alias is a safe identifier and the path is an existing directory. Its
+ * `.ki-config.toml` is read once, here, so no tool call re-reads it.
+ */
+const resolveKnowledgeBase = (alias: string, rawPath: string): KnowledgeBase => {
+  if (!ALIAS_PATTERN.test(alias)) {
+    throw new Error(
+      `${KNOWLEDGE_BASES_ENV_VAR} alias "${alias}" is not a safe identifier — use letters, digits, dot, dash or underscore, starting with a letter or digit (max 64 characters).`
+    )
+  }
+  const trimmed = rawPath.trim()
+  if (trimmed === '') {
+    throw new Error(`${KNOWLEDGE_BASES_ENV_VAR} alias "${alias}" declares an empty path.`)
+  }
+
+  // Absolute (or `~/…`) only. A relative path would be resolved against
+  // whatever directory the MCP host happened to launch the server from, making
+  // the authorisation boundary depend on ambient state — the one thing the
+  // declaration exists to pin down.
+  const expanded = expandHome(trimmed)
+  if (!path.isAbsolute(expanded)) {
+    throw new Error(`${KNOWLEDGE_BASES_ENV_VAR} alias "${alias}" must declare an absolute path or one starting "~/", not "${trimmed}".`)
+  }
+  const rootPath = path.resolve(expanded)
+  let stat: fs.Stats
+  try {
+    stat = fs.statSync(rootPath)
+  } catch {
+    throw new Error(`${KNOWLEDGE_BASES_ENV_VAR} alias "${alias}" points at a path that does not exist: ${rootPath}`)
+  }
+  if (!stat.isDirectory()) {
+    throw new Error(`${KNOWLEDGE_BASES_ENV_VAR} alias "${alias}" points at something that is not a directory: ${rootPath}`)
+  }
+
+  const { zones, rootFileAllowlist, kiConfigRaw } = loadKiConfig(rootPath)
+  return { alias, rootPath, zones, rootFileAllowlist, kiConfigRaw }
+}
+
+const parseKnowledgeBases = (raw: string | undefined): ReadonlyMap<string, KnowledgeBase> => {
+  const bases = new Map<string, KnowledgeBase>()
+  for (const [alias, rawPath] of parseDeclaration(raw)) {
+    bases.set(alias, resolveKnowledgeBase(alias, rawPath))
+  }
+  return bases
+}
+
+/** Declared aliases, in declaration order. */
+export const knowledgeBaseAliases = (cfg: Config): string[] => [...cfg.knowledgeBases.keys()]
+
+/**
+ * The single place an alias becomes a root. Every tool handler resolves its
+ * `kb` argument through this function and passes the result — never `Config` —
+ * into `src/main/`, so "which base does this path belong to" is answered
+ * exactly once per call, at one line of code.
+ *
+ * An undeclared alias is refused outright; there is no default base to fall
+ * back to, by design.
+ */
+export const selectKnowledgeBase = (cfg: Config, alias: string): KnowledgeBase => {
+  const base = cfg.knowledgeBases.get(alias)
+  if (base === undefined) {
+    throw new Error(`Unknown knowledge base "${alias}". Declared aliases: ${knowledgeBaseAliases(cfg).join(', ')}`)
+  }
+  return base
+}
+
+/**
  * Load configuration from `env` (defaults to `process.env`, after attempting to
  * hydrate it from the package's `.env*` files). Throws if a required var is
- * missing.
+ * missing or the knowledge-base declaration is invalid.
  */
 export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
   hydrateEnvFromFiles()
 
-  assert(env.MCP_KI_KB_FS_ROOT_PATH, 'MCP_KI_KB_FS_ROOT_PATH environment variable must be set')
-
-  const rootPath = path.resolve(expandHome(env.MCP_KI_KB_FS_ROOT_PATH))
-  const { zones, rootFileAllowlist, kiConfigRaw } = loadKiConfig(rootPath)
-
   return {
-    rootPath,
+    knowledgeBases: parseKnowledgeBases(env[KNOWLEDGE_BASES_ENV_VAR]),
     accessLevel: parseAccessLevel(env.MCP_KI_KB_FS_ACCESS_LEVEL),
     auditLogMode: parseAuditLogMode(env.MCP_KI_KB_FS_AUDIT_LOG),
     auditLogPath: path.resolve(expandHome(env.MCP_KI_KB_FS_AUDIT_LOG_PATH ?? path.join(os.homedir(), '.local', 'state', 'mcp-ki-kb-fs', 'audit.jsonl'))),
     auditLogMaxBytes: parseNonNegativeInt(env.MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES, 10 * 1024 * 1024, 'MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES'),
-    auditLogKeep: parseNonNegativeInt(env.MCP_KI_KB_FS_AUDIT_LOG_KEEP, 5, 'MCP_KI_KB_FS_AUDIT_LOG_KEEP'),
-    zones,
-    rootFileAllowlist,
-    kiConfigRaw
+    auditLogKeep: parseNonNegativeInt(env.MCP_KI_KB_FS_AUDIT_LOG_KEEP, 5, 'MCP_KI_KB_FS_AUDIT_LOG_KEEP')
   }
 }

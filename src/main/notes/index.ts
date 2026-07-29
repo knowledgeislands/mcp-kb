@@ -6,8 +6,9 @@
  * the logic here (not in the excluded aggregator) makes every branch
  * unit-testable against a real temp KB root.
  *
- * Every entry point takes `Config` as its first argument — the KB root and all
- * other settings are injected, never read from a module singleton.
+ * Every entry point takes one already-resolved `KnowledgeBase` as its first
+ * argument — never the whole `Config`. The base is chosen once per call in the
+ * tool layer, so nothing here can see (or reach into) a second declared base.
  *
  * Layer boundary: every function here returns **plain data** and signals failure
  * by throwing. Mapping to an MCP envelope (`jsonResult` / `errorResult`) is the
@@ -18,7 +19,7 @@ import type { Stats } from 'node:fs'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { z } from 'zod'
-import type { Config } from '../../config/index.js'
+import type { KnowledgeBase } from '../../config/index.js'
 import { isProtectedPath } from '../../utils/protected.js'
 import { assertRealPathWithinRoot, isNodeError, resolveWithinRoot } from '../../utils/utils.js'
 import { isInScope, outOfScopeError } from '../../utils/zones.js'
@@ -69,20 +70,20 @@ const splitFrontmatter = (content: string): FrontmatterSplit => {
   return { frontmatter: null, body: content, malformed: true }
 }
 
-export const readNote = async (cfg: Config, { path: notePath, part = 'all' }: { path: string; part?: NotePart }): Promise<ReadNoteResult> => {
+export const readNote = async (base: KnowledgeBase, { path: notePath, part = 'all' }: { path: string; part?: NotePart }): Promise<ReadNoteResult> => {
   if (!isNote(notePath)) {
     throw new Error(`Notes must end in "${NOTE_EXT}": "${notePath}"`)
   }
   try {
-    const absPath = resolveWithinRoot(cfg.rootPath, notePath)
-    const rel = relativeFromRoot(cfg.rootPath, absPath)
-    if (!isInScope(rel, cfg.zones)) {
-      throw new Error(outOfScopeError(cfg.zones))
+    const absPath = resolveWithinRoot(base.rootPath, notePath)
+    const rel = relativeFromRoot(base.rootPath, absPath)
+    if (!isInScope(rel, base.zones)) {
+      throw new Error(outOfScopeError(base.zones))
     }
     if (isProtectedPath(rel)) {
       throw new Error(`Path is protected: "${notePath}"`)
     }
-    await assertRealPathWithinRoot(cfg.rootPath, absPath)
+    await assertRealPathWithinRoot(base.rootPath, absPath)
     const stat = await fs.stat(absPath)
     if (!stat.isFile()) {
       throw new Error(`Not a note file: "${notePath}"`)
@@ -103,37 +104,40 @@ export const readNote = async (cfg: Config, { path: notePath, part = 'all' }: { 
   }
 }
 
-export const listNotes = async (cfg: Config, { path: dirPath, recursive }: { path: string; recursive: boolean }): Promise<ListNotesResult> => {
-  const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
-  const rel = relativeFromRoot(cfg.rootPath, absDir)
-  if (rel && !isInScope(rel, cfg.zones)) {
-    throw new Error(outOfScopeError(cfg.zones))
+export const listNotes = async (base: KnowledgeBase, { path: dirPath, recursive }: { path: string; recursive: boolean }): Promise<ListNotesResult> => {
+  const absDir = resolveWithinRoot(base.rootPath, dirPath)
+  const rel = relativeFromRoot(base.rootPath, absDir)
+  if (rel && !isInScope(rel, base.zones)) {
+    throw new Error(outOfScopeError(base.zones))
   }
   if (isProtectedPath(rel)) {
     throw new Error(`Path is protected: "${dirPath}"`)
   }
-  await assertRealPathWithinRoot(cfg.rootPath, absDir)
-  const notes = await collectNotes(cfg.rootPath, absDir, recursive)
-  const relative = notes.map((p) => path.relative(cfg.rootPath, p))
+  await assertRealPathWithinRoot(base.rootPath, absDir)
+  const notes = await collectNotes(base.rootPath, absDir, recursive)
+  const relative = notes.map((p) => path.relative(base.rootPath, p))
   return { path: dirPath, recursive, count: relative.length, notes: relative }
 }
 
-export const listFolders = async (cfg: Config, { path: dirPath, recursive }: { path: string; recursive: boolean }): Promise<ListFoldersResult> => {
-  const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
-  const rel = relativeFromRoot(cfg.rootPath, absDir)
-  if (rel && !isInScope(rel, cfg.zones)) {
-    throw new Error(outOfScopeError(cfg.zones))
+export const listFolders = async (base: KnowledgeBase, { path: dirPath, recursive }: { path: string; recursive: boolean }): Promise<ListFoldersResult> => {
+  const absDir = resolveWithinRoot(base.rootPath, dirPath)
+  const rel = relativeFromRoot(base.rootPath, absDir)
+  if (rel && !isInScope(rel, base.zones)) {
+    throw new Error(outOfScopeError(base.zones))
   }
   if (isProtectedPath(rel)) {
     throw new Error(`Path is protected: "${dirPath}"`)
   }
-  await assertRealPathWithinRoot(cfg.rootPath, absDir)
-  const folders = await collectFolders(cfg.rootPath, absDir, recursive)
-  const relative = folders.map((p) => path.relative(cfg.rootPath, p))
+  await assertRealPathWithinRoot(base.rootPath, absDir)
+  const folders = await collectFolders(base.rootPath, absDir, recursive)
+  const relative = folders.map((p) => path.relative(base.rootPath, p))
   return { path: dirPath, recursive, count: relative.length, folders: relative }
 }
 
-export const renameNote = async (cfg: Config, { from, to, create_dirs }: { from: string; to: string; create_dirs: boolean }): Promise<RenameNoteResult> => {
+export const renameNote = async (
+  base: KnowledgeBase,
+  { from, to, create_dirs }: { from: string; to: string; create_dirs: boolean }
+): Promise<RenameNoteResult> => {
   if (!isNote(from)) {
     throw new Error(`Notes must end in "${NOTE_EXT}": "${from}"`)
   }
@@ -141,15 +145,15 @@ export const renameNote = async (cfg: Config, { from, to, create_dirs }: { from:
     throw new Error(`Notes must end in "${NOTE_EXT}": "${to}"`)
   }
   try {
-    const absFrom = resolveWithinRoot(cfg.rootPath, from)
-    const absTo = resolveWithinRoot(cfg.rootPath, to)
-    const relFrom = relativeFromRoot(cfg.rootPath, absFrom)
-    const relTo = relativeFromRoot(cfg.rootPath, absTo)
-    if (!isInScope(relFrom, cfg.zones)) {
-      throw new Error(outOfScopeError(cfg.zones))
+    const absFrom = resolveWithinRoot(base.rootPath, from)
+    const absTo = resolveWithinRoot(base.rootPath, to)
+    const relFrom = relativeFromRoot(base.rootPath, absFrom)
+    const relTo = relativeFromRoot(base.rootPath, absTo)
+    if (!isInScope(relFrom, base.zones)) {
+      throw new Error(outOfScopeError(base.zones))
     }
-    if (!isInScope(relTo, cfg.zones)) {
-      throw new Error(outOfScopeError(cfg.zones))
+    if (!isInScope(relTo, base.zones)) {
+      throw new Error(outOfScopeError(base.zones))
     }
     if (isProtectedPath(relFrom)) {
       throw new Error(`Path is protected: "${from}"`)
@@ -160,12 +164,12 @@ export const renameNote = async (cfg: Config, { from, to, create_dirs }: { from:
     if (absFrom === absTo) {
       throw new Error(`Rename source and destination are the same path: "${from}"`)
     }
-    await assertRealPathWithinRoot(cfg.rootPath, absFrom)
+    await assertRealPathWithinRoot(base.rootPath, absFrom)
     const fromStat = await fs.stat(absFrom)
     if (!fromStat.isFile()) {
       throw new Error(`Not a note file: "${from}"`)
     }
-    await assertRealPathWithinRoot(cfg.rootPath, absTo)
+    await assertRealPathWithinRoot(base.rootPath, absTo)
     if (create_dirs) {
       await fs.mkdir(path.dirname(absTo), { recursive: true })
     }
@@ -189,20 +193,20 @@ export const renameNote = async (cfg: Config, { from, to, create_dirs }: { from:
   }
 }
 
-export const deleteNote = async (cfg: Config, { path: notePath, dry_run }: { path: string; dry_run: boolean }): Promise<DeleteNoteResult> => {
+export const deleteNote = async (base: KnowledgeBase, { path: notePath, dry_run }: { path: string; dry_run: boolean }): Promise<DeleteNoteResult> => {
   if (!isNote(notePath)) {
     throw new Error(`Notes must end in "${NOTE_EXT}": "${notePath}"`)
   }
   try {
-    const absPath = resolveWithinRoot(cfg.rootPath, notePath)
-    const rel = relativeFromRoot(cfg.rootPath, absPath)
-    if (!isInScope(rel, cfg.zones)) {
-      throw new Error(outOfScopeError(cfg.zones))
+    const absPath = resolveWithinRoot(base.rootPath, notePath)
+    const rel = relativeFromRoot(base.rootPath, absPath)
+    if (!isInScope(rel, base.zones)) {
+      throw new Error(outOfScopeError(base.zones))
     }
     if (isProtectedPath(rel)) {
       throw new Error(`Path is protected: "${notePath}"`)
     }
-    await assertRealPathWithinRoot(cfg.rootPath, absPath)
+    await assertRealPathWithinRoot(base.rootPath, absPath)
     const stat = await fs.stat(absPath)
     if (!stat.isFile()) {
       throw new Error(`Not a note file: "${notePath}"`)
@@ -220,19 +224,19 @@ export const deleteNote = async (cfg: Config, { path: notePath, dry_run }: { pat
   }
 }
 
-export const createFolder = async (cfg: Config, { path: dirPath }: { path: string }): Promise<CreateFolderResult> => {
+export const createFolder = async (base: KnowledgeBase, { path: dirPath }: { path: string }): Promise<CreateFolderResult> => {
   if (!dirPath) {
     throw new Error('Folder path must not be empty')
   }
-  const absDir = resolveWithinRoot(cfg.rootPath, dirPath)
-  const rel = relativeFromRoot(cfg.rootPath, absDir)
-  if (!isInScope(rel, cfg.zones)) {
-    throw new Error(outOfScopeError(cfg.zones))
+  const absDir = resolveWithinRoot(base.rootPath, dirPath)
+  const rel = relativeFromRoot(base.rootPath, absDir)
+  if (!isInScope(rel, base.zones)) {
+    throw new Error(outOfScopeError(base.zones))
   }
   if (isProtectedPath(rel)) {
     throw new Error(`Path is protected: "${dirPath}"`)
   }
-  await assertRealPathWithinRoot(cfg.rootPath, absDir)
+  await assertRealPathWithinRoot(base.rootPath, absDir)
   let existing: Stats | null = null
   try {
     existing = await fs.stat(absDir)
@@ -248,24 +252,24 @@ export const createFolder = async (cfg: Config, { path: dirPath }: { path: strin
 }
 
 export const writeNote = async (
-  cfg: Config,
+  base: KnowledgeBase,
   { path: notePath, content, create_dirs, dry_run }: { path: string; content: string; create_dirs: boolean; dry_run: boolean }
 ): Promise<WriteNoteResult> => {
   if (!isNote(notePath)) {
     throw new Error(`Notes must end in "${NOTE_EXT}": "${notePath}"`)
   }
   try {
-    const absPath = resolveWithinRoot(cfg.rootPath, notePath)
-    const rel = relativeFromRoot(cfg.rootPath, absPath)
-    if (!isInScope(rel, cfg.zones)) {
-      throw new Error(outOfScopeError(cfg.zones))
+    const absPath = resolveWithinRoot(base.rootPath, notePath)
+    const rel = relativeFromRoot(base.rootPath, absPath)
+    if (!isInScope(rel, base.zones)) {
+      throw new Error(outOfScopeError(base.zones))
     }
     if (isProtectedPath(rel)) {
       throw new Error(`Path is protected: "${notePath}"`)
     }
     // Realpath-guard BEFORE creating any directory — a symlinked ancestor must be
     // caught before `mkdir -p` can materialise dirs at its target.
-    await assertRealPathWithinRoot(cfg.rootPath, absPath)
+    await assertRealPathWithinRoot(base.rootPath, absPath)
     if (create_dirs && !dry_run) {
       await fs.mkdir(path.dirname(absPath), { recursive: true })
     }

@@ -3,20 +3,23 @@
 /**
  * mcp-ki-kb-fs
  *
- * Local stdio MCP server providing zone-scoped read/write access to a
- * Knowledge Islands knowledge base on the local filesystem. All paths are
- * constrained to the declared KI zones (Calendar, Pillars, Resources, Streams,
- * Admin) and staging areas (+ inbound, - outbound), as resolved from
- * .ki-config.toml at startup.
+ * Local stdio MCP server providing zone-scoped read/write access to one or more
+ * Knowledge Islands knowledge bases on the local filesystem. Each call names the
+ * base it acts in by alias; every path is then constrained to that base's
+ * declared KI zones (Calendar, Pillars, Resources, Streams, Admin) and staging
+ * areas (+ inbound, - outbound), as resolved from its .ki-config.toml at startup.
  *
  * Configuration (environment variables):
- *   MCP_KI_KB_FS_ROOT_PATH    Absolute or ~ path to the knowledge base root.
+ *   MCP_KI_KB_FS_KNOWLEDGE_BASES   JSON object of alias → knowledge-base path.
+ *                                  This declaration is the authorisation
+ *                                  boundary: an alias that is not declared here
+ *                                  is unreachable, and it is validated in full
+ *                                  by loadConfig() before the server connects.
  */
 
-import * as fs from 'node:fs/promises'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { loadConfig } from '../config/index.js'
+import { KNOWLEDGE_BASES_ENV_VAR, loadConfig } from '../config/index.js'
 import { registerConfigTools, registerKbTools } from '../tools/index.js'
 import { makeAccessGatedRegister } from '../utils/access-level.js'
 
@@ -24,9 +27,11 @@ const config = loadConfig()
 
 console.error('mcp-ki-kb-fs starting...')
 console.error(`  MCP_KI_KB_FS_ACCESS_LEVEL=${config.accessLevel}`)
-console.error(`  MCP_KI_KB_FS_ROOT_PATH=${config.rootPath}`)
 console.error(`  MCP_KI_KB_FS_AUDIT_LOG=${config.auditLogMode}${config.auditLogMode === 'off' ? '' : ` (path: ${config.auditLogPath})`}`)
-console.error(`  zones=${Object.values(config.zones).join(', ')}`)
+console.error(`  ${KNOWLEDGE_BASES_ENV_VAR} — ${config.knowledgeBases.size} knowledge base(s):`)
+for (const base of config.knowledgeBases.values()) {
+  console.error(`    ${base.alias} → ${base.rootPath} (zones: ${Object.values(base.zones).join(', ')})`)
+}
 
 const server = new McpServer({
   name: 'mcp-ki-kb-fs',
@@ -46,14 +51,10 @@ server.registerTool = makeAccessGatedRegister(server, config.accessLevel, {
 registerKbTools(server, config)
 registerConfigTools(server, config)
 
+// No per-root accessibility check here: loadConfig() already refused to return
+// unless every declared alias resolves to an existing directory, so reaching
+// this point means the whole declaration is good.
 const main = async (): Promise<void> => {
-  try {
-    await fs.access(config.rootPath)
-  } catch {
-    console.error(`mcp-ki-kb-fs: MCP_KI_KB_FS_ROOT_PATH not accessible: ${config.rootPath}\nSet MCP_KI_KB_FS_ROOT_PATH to the correct path and restart.`)
-    return
-  }
-
   const transport = new StdioServerTransport()
   await server.connect(transport)
   console.error('mcp-ki-kb-fs ready')

@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "mcp-kb-fs": {
+    "mcp-ki-kb-fs": {
       "command": "node",
-      "args": ["/path/to/mcp-kb-fs/dist/mcp-server/index.js"],
+      "args": ["/path/to/mcp-ki-kb-fs/dist/mcp-server/index.js"],
       "env": {
-        "MCP_KB_FS_ROOT_PATH": "/path/to/your/kb"
+        "MCP_KI_KB_FS_KNOWLEDGE_BASES": "{\"kit-pkb\":\"/path/to/your/kb\",\"kit-legal\":\"/path/to/another/kb\"}"
       }
     }
   }

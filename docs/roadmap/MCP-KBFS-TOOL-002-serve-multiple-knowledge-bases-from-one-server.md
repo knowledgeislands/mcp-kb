@@ -3,10 +3,10 @@ id: MCP-KBFS-TOOL-002
 title: Serve multiple knowledge bases from one server
 theme: tool-surface
 horizon: blocking
-status: ready
+status: in-progress
 blocks: []
 blocked-by: []
-baseline-ref: null
+baseline-ref: 61b1aba5d288ccc908962c1a8cf7ff4fa37235f3
 ---
 
 ## Context
