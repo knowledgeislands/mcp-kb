@@ -1,21 +1,26 @@
-[ki-repo]
+["knowledgeislands/ki-agentic-harness:ki-repo"]
 supported_runtimes = ["claude-code", "codex"]
 visibility = "public"
 
-[ki-authoring]
+["knowledgeislands/ki-agentic-harness:ki-authoring"]
 
-[ki-engineering]
+["knowledgeislands/ki-agentic-harness:ki-engineering"]
 
-[ki-mcp]
+["knowledgeislands/ki-agentic-harness:ki-mcp"]
 
-[ki-roadmap]
+["knowledgeislands/ki-agentic-harness:ki-roadmap"]
+repo_code = "MCP-KBFS"
 
-[ki-tokenomics]
+["knowledgeislands/ki-agentic-harness:ki-roadmap".themes]
+FND = "foundation-tooling"
+TOOL = "tool-surface"
 
-[ki-housekeeping-claude]
+["knowledgeislands/ki-agentic-harness:ki-tokenomics"]
 
-[ki-tokenomics-claude]
+["knowledgeislands/ki-agentic-harness:ki-housekeeping-claude"]
 
-[ki-tokenomics-codex]
+["knowledgeislands/ki-agentic-harness:ki-tokenomics-claude"]
 
-[ki-git]
+["knowledgeislands/ki-agentic-harness:ki-tokenomics-codex"]
+
+["knowledgeislands/ki-agentic-harness:ki-git"]
