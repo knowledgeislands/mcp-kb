@@ -22,8 +22,8 @@ This is the canonical layout we roll out across the MCPs:
 
 - **[src/config/index.ts](./src/config/index.ts)** — `loadConfig(env?) → Config`. Reads env (optionally hydrated from `.env.${NODE_ENV}`) into a plain `Config` value. **There is no module-level config singleton — nothing reads env at import time.** `Config` carries `rootPath` (the KB root), `accessLevel`, and the four audit-log fields.
 - **[src/mcp-server/index.ts](./src/mcp-server/index.ts)** — the stdio MCP wrapper. Calls `loadConfig()` once, builds the `AuditConfig` slice, and threads the `Config` into tool registration. Excluded from coverage.
-- **[src/tools/](./src/tools/)** — MCP tool definitions only. Thin: validate args (zod), call a `main/` function with `cfg`, map result/throw to an MCP envelope. `registerNotesTools(server, cfg)`. Excluded from coverage.
-- **[src/main/](./src/main/)** — the real implementation, usable outside the MCP server (e.g. from a script). Grouped by concern, mirroring the tool groups: `main/notes/index.ts` (read/list/write/rename/delete/create-folder). Every `main` entry point takes `Config` as its **first argument** — `readNote(cfg, { path })`, `writeNote(cfg, args)`. No hidden state.
+- **[src/tools/](./src/tools/)** — MCP tool definitions only. Thin: validate args (zod), call a `main/` function with `cfg`, map result/throw to an MCP envelope. `registerKbTools(server, cfg)`, `registerConfigTools(server, cfg)`. Excluded from coverage.
+- **[src/main/](./src/main/)** — the real implementation, usable outside the MCP server (e.g. from a script). Grouped by concern, mirroring the tool groups: `main/files/index.ts` (read/list/write/rename/delete — what the `kb_*` tools call), `main/notes/index.ts` (the Markdown-specific variants plus `createFolder`), `main/config/index.ts` (`readKbConfig`). Every `main` entry point takes `Config` as its **first argument** — `readNote(cfg, { path })`, `writeNote(cfg, args)`. No hidden state.
 - **[src/utils/](./src/utils/)** — cross-MCP reusable helpers; keep in sync with sibling repos. These take the **specific config primitive** they need (e.g. `resolveWithinRoot(rootPath, …)`, `withAuditLog(auditConfig, …)`, `makeAccessGatedRegister(server, accessLevel, audit)`), not the whole `Config`, so they stay MCP-agnostic. `isProtectedPath(relPath)` ([src/utils/protected.ts](./src/utils/protected.ts)) is a pure relpath guard with no config dependency.
 
 To use the code from a script: `const cfg = loadConfig(); await writeNote(cfg, { path: 'note.md', content, create_dirs: true, dry_run: false })`.
@@ -59,4 +59,12 @@ Traversal- and symlink-rejection tests live in [src/main/notes/index.test.ts](./
 
 ## Tool registration call sites
 
-Tools are registered in [src/tools/notes/index.ts](./src/tools/notes/index.ts). To survey the surface, `grep "registerTool" src/tools/*/index.ts`. README's [Available Tools](./README.md#available-tools) tabulates them with purposes.
+Tools are registered in [src/tools/config/index.ts](./src/tools/config/index.ts) (`kb_config`) and [src/tools/kb/index.ts](./src/tools/kb/index.ts) (the other six). To survey the surface, `grep "registerTool" src/tools/*/index.ts`. README's [Available Tools](./README.md#available-tools) tabulates them with purposes.
+
+Within each group file, `server.registerTool(...)` calls are kept in ascending alphabetical order by tool name — the `ki-mcp` TOOL-1 check enforces it.
+
+## Result envelopes and `outputSchema`
+
+The layer boundary is strict: `src/main/` returns **plain data** and signals failure by **throwing**. Only `src/tools/` knows the MCP wire format, via `jsonResult` / `errorResult` in [src/utils/results.ts](./src/utils/results.ts). Every tool handler must wrap its `main/` call in try/catch and return `errorResult(<action>, err)` — never let a throw escape, since a thrown error becomes a protocol error and bypasses the audit-log wrapper.
+
+Each tool declares an `outputSchema`, and it is the **same zod schema** that types the `main/` function's return value via `z.infer`. The schemas live next to their implementation — `readFileResultSchema`, `listContentResultSchema`, `writeFileResultSchema`, `renameFileResultSchema`, `deleteFileResultSchema` in [src/main/files/index.ts](./src/main/files/index.ts), `createFolderResultSchema` in [src/main/notes/index.ts](./src/main/notes/index.ts), `kbConfigResultSchema` in [src/main/config/index.ts](./src/main/config/index.ts). One source means the advertised JSON Schema and the emitted `structuredContent` cannot drift. A new tool must add a schema the same way, not hand-write a second shape.

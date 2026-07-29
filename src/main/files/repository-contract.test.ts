@@ -19,19 +19,12 @@ describe('repository root-file contract', () => {
     const readme = await readFile(cfg, { path: 'README.md' })
     const claude = await readFile(cfg, { path: 'CLAUDE.md' })
 
-    expect((readme as { isError?: boolean }).isError).toBeUndefined()
-    expect((claude as { isError?: boolean }).isError).toBeUndefined()
-    expect(JSON.parse(readme.content[0].text).content).toContain('# mcp-kb-fs')
-    expect(JSON.parse(claude.content[0].text).content).toContain('Guidance for Claude Code')
+    expect(readme.content).toContain('# mcp-kb-fs')
+    expect(claude.content).toContain('Guidance for Claude Code')
   })
 
   it('does not expose unrelated root files or make the root listable', async () => {
-    const packageJson = await readFile(cfg, { path: 'package.json' })
-    const rootList = await listContent(cfg, { path: '', kind: 'files', recursive: false })
-
-    expect((packageJson as { isError?: boolean }).isError).toBe(true)
-    expect(packageJson.content[0].text).toContain('root_file_allowlist')
-    expect((rootList as { isError?: boolean }).isError).toBe(true)
-    expect(rootList.content[0].text).toContain('outside KB zones')
+    await expect(readFile(cfg, { path: 'package.json' })).rejects.toThrow(/root_file_allowlist/)
+    await expect(listContent(cfg, { path: '', kind: 'files', recursive: false })).rejects.toThrow(/outside KB zones/)
   })
 })
