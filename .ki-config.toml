@@ -1,4 +1,7 @@
 ["knowledgeislands/ki-agentic-harness:ki-repo"]
+title = "mcp-kb-fs"
+description = "MCP for Knowledge Islands knowledge bases on a local filesystem"
+repo_code = "MCP-KBFS"
 supported_runtimes = ["claude-code", "codex"]
 visibility = "public"
 
@@ -9,8 +12,6 @@ visibility = "public"
 ["knowledgeislands/ki-agentic-harness:ki-mcp"]
 
 ["knowledgeislands/ki-agentic-harness:ki-roadmap"]
-repo_code = "MCP-KBFS"
-
 ["knowledgeislands/ki-agentic-harness:ki-roadmap".themes]
 FND = "foundation-tooling"
 TOOL = "tool-surface"
