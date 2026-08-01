@@ -2,7 +2,7 @@
 title = "mcp-kb-fs"
 description = "MCP for Knowledge Islands knowledge bases on a local filesystem"
 repo_code = "MCP-KBFS"
-supported_runtimes = ["claude-code", "codex"]
+supported_runtimes = ["claude-code", "chatgpt-codex"]
 visibility = "public"
 
 ["knowledgeislands/ki-agentic-harness:ki-authoring"]
