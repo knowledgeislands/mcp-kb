@@ -10,7 +10,7 @@
     "url": "https://github.com/knowledgeislands/mcp-ki-kb-fs/issues"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "smol-toml": "^1.7.0",
     "zod": "^4.4.3"
   },
