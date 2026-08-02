@@ -22,7 +22,7 @@
     "knip": "^6.31.0",
     "lint-staged": "^17.3.0",
     "markdownlint-cli2": "^0.23.2",
-    "mcporter": "^0.12.3",
+    "mcporter": "^0.12.4",
     "prettier": "^3.9.6",
     "syncpack": "^15.3.2",
     "typescript": "^7.0.2",
