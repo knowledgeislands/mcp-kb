@@ -9,6 +9,10 @@ blocked-by: []
 baseline-ref: 61b1aba5d288ccc908962c1a8cf7ff4fa37235f3
 ---
 
+## Goal
+
+Achieve the stated outcome: Serve multiple knowledge bases from one server.
+
 ## Context
 
 One server instance serves exactly one knowledge base, so every KB needs its own registration. `.chezmoidata/mcp-servers.yaml` declares eleven `mcp-ki-kb-fs` entries that differ only in `MCP_KI_KB_FS_ROOT_PATH`, all at `destructive` access, and each is rendered into both `claude-desktop` and `mcporter`. They are the majority of the server entries in that file, so this one server dominates the declared MCP estate.
@@ -43,14 +47,14 @@ The layer boundary and result contracts were corrected recently and constrain ho
 
 ## Steps
 
-1. Add an alias-to-path declaration to `loadConfig`, replacing `MCP_KI_KB_FS_ROOT_PATH`. Each entry pairs a caller-facing alias with an absolute path after home expansion. Reject a malformed declaration, a duplicate alias, an alias that is not a safe identifier, and a path that is not an existing directory, at startup rather than on first use.
-2. Replace `Config`'s flat `rootPath`, `zones`, `rootFileAllowlist`, and `kiConfigRaw` with a collection keyed by alias, resolving each declared base's `.ki-config.toml` once at startup through the existing `loadKiConfig`. Keep `accessLevel` and the audit-log fields server-wide.
-3. Add a required `kb` argument to each of the seven tools, validated against the declared aliases so an unknown alias is refused by schema validation before any filesystem call. Resolve the alias to its base in the tool layer and pass that base's root and zones to `main/`.
-4. Change the `main/` signatures to take one resolved base rather than the whole `Config`, leaving every `resolveWithinRoot`, `assertRealPathWithinRoot`, and `isInScope` call unchanged — they already take a root or zones per call.
-5. Make `kb_config` report the declared aliases and each one's resolved zones, so a caller can discover what this install permits without reading the environment. Keep one audit log and record the serving alias on each event.
-6. Update `scripts/smoke.ts` and the tool-registration assertions for the changed input schemas, and update `README.md` and `CLAUDE.md` to document the alias declaration as the install's authorisation boundary.
-7. Add tests for alias resolution, a refused undeclared alias, a refused malformed or duplicate declaration, and cross-base containment — specifically that a relative path under one alias cannot resolve into another declared base.
-8. Replace the eleven `mcp-ki-kb-fs` entries in `.chezmoidata/mcp-servers.yaml` with one declaring the eleven knowledge-base aliases, keeping its `clients` set as `[claude-desktop, mcporter]`, then apply with chezmoi and confirm the rendered configuration for both clients holds a single entry that serves each alias.
+- [x] Add an alias-to-path declaration to `loadConfig`, replacing `MCP_KI_KB_FS_ROOT_PATH`. Each entry pairs a caller-facing alias with an absolute path after home expansion. Reject a malformed declaration, a duplicate alias, an alias that is not a safe identifier, and a path that is not an existing directory, at startup rather than on first use.
+- [x] Replace `Config`'s flat `rootPath`, `zones`, `rootFileAllowlist`, and `kiConfigRaw` with a collection keyed by alias, resolving each declared base's `.ki-config.toml` once at startup through the existing `loadKiConfig`. Keep `accessLevel` and the audit-log fields server-wide.
+- [x] Add a required `kb` argument to each of the seven tools, validated against the declared aliases so an unknown alias is refused by schema validation before any filesystem call. Resolve the alias to its base in the tool layer and pass that base's root and zones to `main/`.
+- [x] Change the `main/` signatures to take one resolved base rather than the whole `Config`, leaving every `resolveWithinRoot`, `assertRealPathWithinRoot`, and `isInScope` call unchanged — they already take a root or zones per call.
+- [x] Make `kb_config` report the declared aliases and each one's resolved zones, so a caller can discover what this install permits without reading the environment. Keep one audit log and record the serving alias on each event.
+- [x] Update `scripts/smoke.ts` and the tool-registration assertions for the changed input schemas, and update `README.md` and `CLAUDE.md` to document the alias declaration as the install's authorisation boundary.
+- [x] Add tests for alias resolution, a refused undeclared alias, a refused malformed or duplicate declaration, and cross-base containment — specifically that a relative path under one alias cannot resolve into another declared base.
+- [x] Replace the eleven `mcp-ki-kb-fs` entries in `.chezmoidata/mcp-servers.yaml` with one declaring the eleven knowledge-base aliases, keeping its `clients` set as `[claude-desktop, mcporter]`, then apply with chezmoi and confirm the rendered configuration for both clients holds a single entry that serves each alias.
 
 ## Files touched
 

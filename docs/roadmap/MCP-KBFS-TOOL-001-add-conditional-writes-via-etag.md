@@ -9,6 +9,10 @@ blocked-by: []
 baseline-ref: null
 ---
 
+## Goal
+
+Achieve the stated outcome: Add conditional writes via etag for kb_write.
+
 ## Context
 
 Redesign `kb_write` around optional optimistic locking: return an `etag` from `kb_read`, accept an `if_match` write argument, and refuse stale writes.
@@ -31,12 +35,12 @@ Two read-shape facts constrain the design. `kb_read` can return a slice (`part: 
 
 ## Steps
 
-1. Decide and document the etag derivation (content hash versus stat-based validator), and make it total over both UTF-8 and binary files and independent of the `part` slice returned.
-2. Add the `etag` field to `readFileResultSchema` with a describe string, and populate it in `readFile` from the bytes already read.
-3. Add an optional `if_match` argument to the `kb_write` `inputSchema` and to `writeFile`, re-reading the target inside the write path and refusing on mismatch with a distinguishable error; keep the no-`if_match` path as today's force overwrite.
-4. Define the `dry_run` semantics for a conditional write — a preview must report whether the precondition currently holds without mutating — and extend `writeFileResultSchema` if that needs a field.
-5. Extend the tool descriptions in `src/tools/kb/index.ts` and the README tool table and `kb_read` / `kb_write` sections so the optimistic-locking contract is discoverable.
-6. Add contract tests for match, mismatch, missing-target, binary, and slice-read cases, and confirm the smoke test still sees the unchanged seven-tool surface.
+- [ ] Decide and document the etag derivation (content hash versus stat-based validator), and make it total over both UTF-8 and binary files and independent of the `part` slice returned.
+- [ ] Add the `etag` field to `readFileResultSchema` with a describe string, and populate it in `readFile` from the bytes already read.
+- [ ] Add an optional `if_match` argument to the `kb_write` `inputSchema` and to `writeFile`, re-reading the target inside the write path and refusing on mismatch with a distinguishable error; keep the no-`if_match` path as today's force overwrite.
+- [ ] Define the `dry_run` semantics for a conditional write — a preview must report whether the precondition currently holds without mutating — and extend `writeFileResultSchema` if that needs a field.
+- [ ] Extend the tool descriptions in `src/tools/kb/index.ts` and the README tool table and `kb_read` / `kb_write` sections so the optimistic-locking contract is discoverable.
+- [ ] Add contract tests for match, mismatch, missing-target, binary, and slice-read cases, and confirm the smoke test still sees the unchanged seven-tool surface.
 
 ## Files touched
 
