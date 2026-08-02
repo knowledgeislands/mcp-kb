@@ -29,7 +29,7 @@
     "vitest": "^4.1.10"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22"
   },
   "exports": {
     ".": {
@@ -60,7 +60,7 @@
   ],
   "license": "MIT",
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,json}": [
+    "*.{ts,tsx,js,jsx,json,jsonc}": [
       "bunx @biomejs/biome check --write --no-errors-on-unmatched"
     ],
     "*.md": [
@@ -85,7 +85,8 @@
     "prepare": "husky",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "ki:deps:update": "bun update --latest"
   },
   "type": "module"
 }
