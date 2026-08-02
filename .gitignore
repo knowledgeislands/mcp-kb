@@ -43,4 +43,6 @@ logs
 .claude/skills/
 
 # Generated project-local runtime payloads (ki-bootstrap) — never committed
-.agents/skills/
+.agents/skills/*
+!.agents/skills/ki-self/
+!.agents/skills/ki-self/**
