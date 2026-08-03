@@ -1,0 +1,4 @@
+# Use automatic review for approval requests raised in this trusted project.
+# The workspace sandbox remains in place; it is not full-access mode.
+approval_policy = "on-request"
+approvals_reviewer = "auto_review"
