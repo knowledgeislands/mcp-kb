@@ -3,7 +3,7 @@ id: MCP-KBFS-TOOL-001
 title: Add ETag writes
 theme: tool-surface
 horizon: next
-status: open
+status: draft
 blocks: []
 blocked-by: []
 baseline-ref: null

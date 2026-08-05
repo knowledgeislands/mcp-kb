@@ -2,8 +2,8 @@
 id: MCP-KBFS-TOOL-002
 title: Serve multiple knowledge bases
 theme: tool-surface
-horizon: blocking
-status: acceptance
+horizon: now
+status: awaiting-review
 blocks: []
 blocked-by: []
 baseline-ref: 61b1aba5d288ccc908962c1a8cf7ff4fa37235f3
@@ -89,7 +89,7 @@ Delegate it as a single judgment task with the security invariants stated in the
 
 If any part is separable, it is step 6 — the smoke, README, and CLAUDE.md updates — which can follow once the surface settles.
 
-## Acceptance
+## Review
 
 ### Delivered
 

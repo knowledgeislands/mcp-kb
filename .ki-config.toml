@@ -1,4 +1,5 @@
 ["knowledgeislands/ki-agentic-harness:ki-repo"]
+repository = "https://github.com/knowledgeislands/mcp-ki-kb-fs"
 title = "mcp-kb-fs"
 description = "MCP for Knowledge Islands knowledge bases on a local filesystem"
 repo_code = "MCP-KBFS"
