@@ -1,6 +1,6 @@
 ---
 id: MCP-KBFS-TOOL-002
-title: Serve multiple knowledge bases from one server
+title: Serve multiple knowledge bases
 theme: tool-surface
 horizon: blocking
 status: acceptance

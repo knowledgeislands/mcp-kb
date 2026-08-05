@@ -1,6 +1,6 @@
 ---
 id: MCP-KBFS-TOOL-001
-title: Add conditional writes via etag for kb_write
+title: Add ETag writes
 theme: tool-surface
 horizon: next
 status: open
