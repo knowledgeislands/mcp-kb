@@ -42,7 +42,13 @@ export const collectNotes = async (rootPath: string, dir: string, recursive: boo
   return results
 }
 
-export const collectFiles = async (rootPath: string, dir: string, recursive: boolean, ext: string | null, depth = 0): Promise<string[]> => {
+export const collectFiles = async (
+  rootPath: string,
+  dir: string,
+  recursive: boolean,
+  ext: string | null,
+  depth = 0
+): Promise<string[]> => {
   const entries = await readEntries(rootPath, dir)
   const results: string[] = []
   for (const entry of entries) {
@@ -62,7 +68,12 @@ export const collectFiles = async (rootPath: string, dir: string, recursive: boo
   return results
 }
 
-export const collectFolders = async (rootPath: string, dir: string, recursive: boolean, depth = 0): Promise<string[]> => {
+export const collectFolders = async (
+  rootPath: string,
+  dir: string,
+  recursive: boolean,
+  depth = 0
+): Promise<string[]> => {
   const entries = await readEntries(rootPath, dir)
   const results: string[] = []
   for (const entry of entries) {

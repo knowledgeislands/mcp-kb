@@ -42,7 +42,11 @@ type RegisterToolArgs = [name: string, config: RegisterToolConfig, callback: Too
  * skipped. Each registered tool's callback is wrapped with the audit logger
  * (configured by `audit`). Both come from the caller's loaded Config.
  */
-export const makeAccessGatedRegister = (server: McpServer, accessLevel: AccessLevel, audit: AuditConfig): RegisterTool => {
+export const makeAccessGatedRegister = (
+  server: McpServer,
+  accessLevel: AccessLevel,
+  audit: AuditConfig
+): RegisterTool => {
   const proxied = new Proxy(server.registerTool.bind(server) as RegisterTool, {
     apply(target, thisArg, args: RegisterToolArgs) {
       const [name, config, callback] = args

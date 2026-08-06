@@ -70,7 +70,10 @@ const splitFrontmatter = (content: string): FrontmatterSplit => {
   return { frontmatter: null, body: content, malformed: true }
 }
 
-export const readNote = async (base: KnowledgeBase, { path: notePath, part = 'all' }: { path: string; part?: NotePart }): Promise<ReadNoteResult> => {
+export const readNote = async (
+  base: KnowledgeBase,
+  { path: notePath, part = 'all' }: { path: string; part?: NotePart }
+): Promise<ReadNoteResult> => {
   if (!isNote(notePath)) {
     throw new Error(`Notes must end in "${NOTE_EXT}": "${notePath}"`)
   }
@@ -104,7 +107,10 @@ export const readNote = async (base: KnowledgeBase, { path: notePath, part = 'al
   }
 }
 
-export const listNotes = async (base: KnowledgeBase, { path: dirPath, recursive }: { path: string; recursive: boolean }): Promise<ListNotesResult> => {
+export const listNotes = async (
+  base: KnowledgeBase,
+  { path: dirPath, recursive }: { path: string; recursive: boolean }
+): Promise<ListNotesResult> => {
   const absDir = resolveWithinRoot(base.rootPath, dirPath)
   const rel = relativeFromRoot(base.rootPath, absDir)
   if (rel && !isInScope(rel, base.zones)) {
@@ -119,7 +125,10 @@ export const listNotes = async (base: KnowledgeBase, { path: dirPath, recursive 
   return { path: dirPath, recursive, count: relative.length, notes: relative }
 }
 
-export const listFolders = async (base: KnowledgeBase, { path: dirPath, recursive }: { path: string; recursive: boolean }): Promise<ListFoldersResult> => {
+export const listFolders = async (
+  base: KnowledgeBase,
+  { path: dirPath, recursive }: { path: string; recursive: boolean }
+): Promise<ListFoldersResult> => {
   const absDir = resolveWithinRoot(base.rootPath, dirPath)
   const rel = relativeFromRoot(base.rootPath, absDir)
   if (rel && !isInScope(rel, base.zones)) {
@@ -193,7 +202,10 @@ export const renameNote = async (
   }
 }
 
-export const deleteNote = async (base: KnowledgeBase, { path: notePath, dry_run }: { path: string; dry_run: boolean }): Promise<DeleteNoteResult> => {
+export const deleteNote = async (
+  base: KnowledgeBase,
+  { path: notePath, dry_run }: { path: string; dry_run: boolean }
+): Promise<DeleteNoteResult> => {
   if (!isNote(notePath)) {
     throw new Error(`Notes must end in "${NOTE_EXT}": "${notePath}"`)
   }
@@ -212,7 +224,13 @@ export const deleteNote = async (base: KnowledgeBase, { path: notePath, dry_run 
       throw new Error(`Not a note file: "${notePath}"`)
     }
     if (dry_run) {
-      return { path: notePath, bytes: stat.size, deleted: false, dry_run: true, action: `would delete (${stat.size} bytes)` }
+      return {
+        path: notePath,
+        bytes: stat.size,
+        deleted: false,
+        dry_run: true,
+        action: `would delete (${stat.size} bytes)`
+      }
     }
     await fs.unlink(absPath)
     return { path: notePath, bytes: stat.size, deleted: true, dry_run: false, action: `deleted (${stat.size} bytes)` }
@@ -224,7 +242,10 @@ export const deleteNote = async (base: KnowledgeBase, { path: notePath, dry_run 
   }
 }
 
-export const createFolder = async (base: KnowledgeBase, { path: dirPath }: { path: string }): Promise<CreateFolderResult> => {
+export const createFolder = async (
+  base: KnowledgeBase,
+  { path: dirPath }: { path: string }
+): Promise<CreateFolderResult> => {
   if (!dirPath) {
     throw new Error('Folder path must not be empty')
   }
@@ -253,7 +274,12 @@ export const createFolder = async (base: KnowledgeBase, { path: dirPath }: { pat
 
 export const writeNote = async (
   base: KnowledgeBase,
-  { path: notePath, content, create_dirs, dry_run }: { path: string; content: string; create_dirs: boolean; dry_run: boolean }
+  {
+    path: notePath,
+    content,
+    create_dirs,
+    dry_run
+  }: { path: string; content: string; create_dirs: boolean; dry_run: boolean }
 ): Promise<WriteNoteResult> => {
   if (!isNote(notePath)) {
     throw new Error(`Notes must end in "${NOTE_EXT}": "${notePath}"`)

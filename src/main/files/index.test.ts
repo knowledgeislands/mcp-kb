@@ -111,17 +111,23 @@ describe('readFile', () => {
 
   it('rejects Markdown parts for a non-Markdown file', async () => {
     await fs.writeFile(zp('hello.txt'), 'hello', 'utf-8')
-    await expect(readFile(base, { path: `${ZONE}/hello.txt`, part: 'body' })).rejects.toThrow('only available for UTF-8 Markdown')
+    await expect(readFile(base, { path: `${ZONE}/hello.txt`, part: 'body' })).rejects.toThrow(
+      'only available for UTF-8 Markdown'
+    )
   })
 
   it('rejects Markdown parts for a binary (base64) file', async () => {
     await fs.writeFile(zp('bin.md'), Buffer.from([0xff, 0xfe]))
-    await expect(readFile(base, { path: `${ZONE}/bin.md`, part: 'frontmatter' })).rejects.toThrow('only available for UTF-8 Markdown')
+    await expect(readFile(base, { path: `${ZONE}/bin.md`, part: 'frontmatter' })).rejects.toThrow(
+      'only available for UTF-8 Markdown'
+    )
   })
 
   it('returns an error for frontmatter opened but never closed', async () => {
     await fs.writeFile(zp('malformed.md'), '---\ntitle: Test\n# Body\n', 'utf-8')
-    await expect(readFile(base, { path: `${ZONE}/malformed.md`, part: 'body' })).rejects.toThrow('Malformed frontmatter')
+    await expect(readFile(base, { path: `${ZONE}/malformed.md`, part: 'body' })).rejects.toThrow(
+      'Malformed frontmatter'
+    )
   })
 
   it('reports "(no frontmatter)" for a Markdown file that has none', async () => {
@@ -143,13 +149,21 @@ describe('readFile — root-file allow-list', () => {
   it('reads a default allow-listed root README', async () => {
     await fs.writeFile(path.join(ROOT_PATH, 'README.md'), '# KB context', 'utf-8')
     const result = await readFile(base, { path: 'README.md' })
-    expect(result).toMatchObject({ path: 'README.md', encoding: 'utf-8', mimeType: 'text/markdown', content: '# KB context' })
+    expect(result).toMatchObject({
+      path: 'README.md',
+      encoding: 'utf-8',
+      mimeType: 'text/markdown',
+      content: '# KB context'
+    })
   })
 
   it('reads an explicitly configured nested agent instruction file', async () => {
     await fs.mkdir(path.join(ROOT_PATH, '.github'), { recursive: true })
     await fs.writeFile(path.join(ROOT_PATH, '.github', 'copilot-instructions.md'), '# Copilot', 'utf-8')
-    const result = await readFile({ ...base, rootFileAllowlist: ['.github/copilot-instructions.md'] }, { path: '.github/copilot-instructions.md' })
+    const result = await readFile(
+      { ...base, rootFileAllowlist: ['.github/copilot-instructions.md'] },
+      { path: '.github/copilot-instructions.md' }
+    )
     expect(result.content).toBe('# Copilot')
   })
 
@@ -200,11 +214,15 @@ describe('listContent', () => {
 
   it('rejects protected paths inside a zone', async () => {
     await fs.mkdir(zp('.hidden'), { recursive: true })
-    await expect(listContent(base, { path: `${ZONE}/.hidden`, kind: 'files', recursive: false })).rejects.toThrow('Path is protected')
+    await expect(listContent(base, { path: `${ZONE}/.hidden`, kind: 'files', recursive: false })).rejects.toThrow(
+      'Path is protected'
+    )
   })
 
   it('returns error for a missing directory', async () => {
-    await expect(listContent(base, { path: `${ZONE}/nope`, kind: 'files', recursive: false })).rejects.toThrow('Directory not found')
+    await expect(listContent(base, { path: `${ZONE}/nope`, kind: 'files', recursive: false })).rejects.toThrow(
+      'Directory not found'
+    )
   })
 })
 
@@ -266,7 +284,13 @@ describe('listFiles', () => {
 
 describe('writeFile', () => {
   it('writes a utf-8 text file', async () => {
-    const result = await writeFile(base, { path: `${ZONE}/out.txt`, content: 'hello', encoding: 'utf-8', create_dirs: true, dry_run: false })
+    const result = await writeFile(base, {
+      path: `${ZONE}/out.txt`,
+      content: 'hello',
+      encoding: 'utf-8',
+      create_dirs: true,
+      dry_run: false
+    })
     expect(result.bytes).toBe(5)
     const onDisk = await fs.readFile(zp('out.txt'), 'utf-8')
     expect(onDisk).toBe('hello')
@@ -275,7 +299,13 @@ describe('writeFile', () => {
   it('writes a base64-encoded binary file', async () => {
     const buf = Buffer.from([0xde, 0xad, 0xbe, 0xef])
     const b64 = buf.toString('base64')
-    await writeFile(base, { path: `${ZONE}/bin.bin`, content: b64, encoding: 'base64', create_dirs: true, dry_run: false })
+    await writeFile(base, {
+      path: `${ZONE}/bin.bin`,
+      content: b64,
+      encoding: 'base64',
+      create_dirs: true,
+      dry_run: false
+    })
     const onDisk = await fs.readFile(zp('bin.bin'))
     expect(onDisk).toEqual(buf)
   })
@@ -320,27 +350,33 @@ describe('writeFile', () => {
   })
 
   it('creates parent directories when create_dirs is true', async () => {
-    await writeFile(base, { path: `${ZONE}/sub/deep/out.txt`, content: 'x', encoding: 'utf-8', create_dirs: true, dry_run: false })
+    await writeFile(base, {
+      path: `${ZONE}/sub/deep/out.txt`,
+      content: 'x',
+      encoding: 'utf-8',
+      create_dirs: true,
+      dry_run: false
+    })
     const onDisk = await fs.readFile(zp('sub', 'deep', 'out.txt'), 'utf-8')
     expect(onDisk).toBe('x')
   })
 
   it('rejects path traversal', async () => {
-    await expect(writeFile(base, { path: '../escape.txt', content: 'x', encoding: 'utf-8', create_dirs: false, dry_run: false })).rejects.toThrow(
-      'Path escapes root'
-    )
+    await expect(
+      writeFile(base, { path: '../escape.txt', content: 'x', encoding: 'utf-8', create_dirs: false, dry_run: false })
+    ).rejects.toThrow('Path escapes root')
   })
 
   it('rejects paths outside KB zones', async () => {
-    await expect(writeFile(base, { path: 'root-level.txt', content: 'x', encoding: 'utf-8', create_dirs: true, dry_run: false })).rejects.toThrow(
-      'outside KB zones'
-    )
+    await expect(
+      writeFile(base, { path: 'root-level.txt', content: 'x', encoding: 'utf-8', create_dirs: true, dry_run: false })
+    ).rejects.toThrow('outside KB zones')
   })
 
   it('rejects protected paths', async () => {
-    await expect(writeFile(base, { path: `${ZONE}/.env`, content: 'x', encoding: 'utf-8', create_dirs: true, dry_run: false })).rejects.toThrow(
-      'Path is protected'
-    )
+    await expect(
+      writeFile(base, { path: `${ZONE}/.env`, content: 'x', encoding: 'utf-8', create_dirs: true, dry_run: false })
+    ).rejects.toThrow('Path is protected')
   })
 
   it('dry_run rethrows non-ENOENT errors from the existence probe', async () => {
@@ -363,7 +399,9 @@ describe('renameFile — non-ENOENT error (line 228)', () => {
     await fs.writeFile(zp('blocker.png'), 'x', 'utf-8')
     await fs.writeFile(zp('src.png'), 'y', 'utf-8')
     // "blocker.png" is a file; "blocker.png/child.png" triggers ENOTDIR, not ENOENT
-    await expect(renameFile(base, { from: `${ZONE}/src.png`, to: `${ZONE}/blocker.png/child.png`, create_dirs: false })).rejects.toThrow()
+    await expect(
+      renameFile(base, { from: `${ZONE}/src.png`, to: `${ZONE}/blocker.png/child.png`, create_dirs: false })
+    ).rejects.toThrow()
   })
 })
 
@@ -380,20 +418,28 @@ describe('renameFile', () => {
   it('returns error when destination already exists', async () => {
     await fs.writeFile(zp('a.png'), 'a', 'utf-8')
     await fs.writeFile(zp('b.png'), 'b', 'utf-8')
-    await expect(renameFile(base, { from: `${ZONE}/a.png`, to: `${ZONE}/b.png`, create_dirs: true })).rejects.toThrow('Destination already exists')
+    await expect(renameFile(base, { from: `${ZONE}/a.png`, to: `${ZONE}/b.png`, create_dirs: true })).rejects.toThrow(
+      'Destination already exists'
+    )
   })
 
   it('returns error when source is missing', async () => {
-    await expect(renameFile(base, { from: `${ZONE}/missing.png`, to: `${ZONE}/new.png`, create_dirs: true })).rejects.toThrow('File not found')
+    await expect(
+      renameFile(base, { from: `${ZONE}/missing.png`, to: `${ZONE}/new.png`, create_dirs: true })
+    ).rejects.toThrow('File not found')
   })
 
   it('returns error when source and destination are the same', async () => {
-    await expect(renameFile(base, { from: `${ZONE}/a.png`, to: `${ZONE}/a.png`, create_dirs: true })).rejects.toThrow('same')
+    await expect(renameFile(base, { from: `${ZONE}/a.png`, to: `${ZONE}/a.png`, create_dirs: true })).rejects.toThrow(
+      'same'
+    )
   })
 
   it('returns error when source is a directory not a file', async () => {
     await fs.mkdir(zp('dir'), { recursive: true })
-    await expect(renameFile(base, { from: `${ZONE}/dir`, to: `${ZONE}/dir2`, create_dirs: true })).rejects.toThrow('Not a file')
+    await expect(renameFile(base, { from: `${ZONE}/dir`, to: `${ZONE}/dir2`, create_dirs: true })).rejects.toThrow(
+      'Not a file'
+    )
   })
 
   it('creates destination parent dirs when create_dirs is true', async () => {
@@ -404,20 +450,28 @@ describe('renameFile', () => {
 
   it('rejects destination outside KB zones', async () => {
     await fs.writeFile(zp('src.png'), 'x', 'utf-8')
-    await expect(renameFile(base, { from: `${ZONE}/src.png`, to: 'root-level.png', create_dirs: false })).rejects.toThrow('outside KB zones')
+    await expect(
+      renameFile(base, { from: `${ZONE}/src.png`, to: 'root-level.png', create_dirs: false })
+    ).rejects.toThrow('outside KB zones')
   })
 
   it('rejects source outside KB zones', async () => {
-    await expect(renameFile(base, { from: 'root-level.png', to: `${ZONE}/dst.png`, create_dirs: false })).rejects.toThrow('outside KB zones')
+    await expect(
+      renameFile(base, { from: 'root-level.png', to: `${ZONE}/dst.png`, create_dirs: false })
+    ).rejects.toThrow('outside KB zones')
   })
 
   it('rejects protected source path', async () => {
-    await expect(renameFile(base, { from: `${ZONE}/.hidden.png`, to: `${ZONE}/dst.png`, create_dirs: false })).rejects.toThrow('Path is protected')
+    await expect(
+      renameFile(base, { from: `${ZONE}/.hidden.png`, to: `${ZONE}/dst.png`, create_dirs: false })
+    ).rejects.toThrow('Path is protected')
   })
 
   it('rejects protected destination path', async () => {
     await fs.writeFile(zp('src.png'), 'x', 'utf-8')
-    await expect(renameFile(base, { from: `${ZONE}/src.png`, to: `${ZONE}/.hidden.png`, create_dirs: false })).rejects.toThrow('Path is protected')
+    await expect(
+      renameFile(base, { from: `${ZONE}/src.png`, to: `${ZONE}/.hidden.png`, create_dirs: false })
+    ).rejects.toThrow('Path is protected')
   })
 })
 
@@ -492,7 +546,11 @@ describe('result schemas', () => {
     })
     expect(writeFileResultSchema.parse(written)).toEqual(written)
 
-    const renamed = await renameFile(base, { from: `${ZONE}/schema-out.txt`, to: `${ZONE}/schema-renamed.txt`, create_dirs: false })
+    const renamed = await renameFile(base, {
+      from: `${ZONE}/schema-out.txt`,
+      to: `${ZONE}/schema-renamed.txt`,
+      create_dirs: false
+    })
     expect(renameFileResultSchema.parse(renamed)).toEqual(renamed)
 
     const deleted = await deleteFile(base, { path: `${ZONE}/schema-renamed.txt`, dry_run: false })

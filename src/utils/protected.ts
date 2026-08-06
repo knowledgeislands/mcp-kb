@@ -1,6 +1,15 @@
 import * as path from 'node:path'
 
-const META_STEMS = new Set(['readme', 'claude', 'license', 'changelog', 'contributing', 'security', 'code_of_conduct', 'agents'])
+const META_STEMS = new Set([
+  'readme',
+  'claude',
+  'license',
+  'changelog',
+  'contributing',
+  'security',
+  'code_of_conduct',
+  'agents'
+])
 const META_EXTS = new Set(['.md', '.txt'])
 
 const isMetaBasename = (basename: string): boolean => {

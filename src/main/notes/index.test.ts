@@ -3,7 +3,16 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { KnowledgeBase } from '../../config/index.js'
-import { createFolder, createFolderResultSchema, deleteNote, listFolders, listNotes, readNote, renameNote, writeNote } from './index.js'
+import {
+  createFolder,
+  createFolderResultSchema,
+  deleteNote,
+  listFolders,
+  listNotes,
+  readNote,
+  renameNote,
+  writeNote
+} from './index.js'
 
 // The base is injected, not read from env: build one KnowledgeBase literal
 // pointing at a per-process temp KB root and pass it as the first arg to every
@@ -45,7 +54,12 @@ beforeEach(async () => {
 
 describe('writeNote', () => {
   it('writes a new note and reports byte count', async () => {
-    const result = await writeNote(base, { path: `${ZONE}/a.md`, content: '# hello', create_dirs: true, dry_run: false })
+    const result = await writeNote(base, {
+      path: `${ZONE}/a.md`,
+      content: '# hello',
+      create_dirs: true,
+      dry_run: false
+    })
     expect(result).toEqual({ path: `${ZONE}/a.md`, bytes: 7, dry_run: false, action: 'wrote (7 bytes)' })
     const onDisk = await fs.readFile(zp('a.md'), 'utf-8')
     expect(onDisk).toBe('# hello')
@@ -58,20 +72,24 @@ describe('writeNote', () => {
   })
 
   it('returns a friendly error when the parent dir is missing and create_dirs is false', async () => {
-    await expect(writeNote(base, { path: `${ZONE}/missing/note.md`, content: 'x', create_dirs: false, dry_run: false })).rejects.toThrow(
-      `Directory not found for: "${ZONE}/missing/note.md"`
-    )
-    await expect(writeNote(base, { path: `${ZONE}/missing/note.md`, content: 'x', create_dirs: false, dry_run: false })).rejects.toThrow(
-      'set create_dirs: true'
-    )
+    await expect(
+      writeNote(base, { path: `${ZONE}/missing/note.md`, content: 'x', create_dirs: false, dry_run: false })
+    ).rejects.toThrow(`Directory not found for: "${ZONE}/missing/note.md"`)
+    await expect(
+      writeNote(base, { path: `${ZONE}/missing/note.md`, content: 'x', create_dirs: false, dry_run: false })
+    ).rejects.toThrow('set create_dirs: true')
   })
 
   it('rejects path traversal', async () => {
-    await expect(writeNote(base, { path: '../escape.md', content: 'x', create_dirs: true, dry_run: false })).rejects.toThrow('Path escapes root')
+    await expect(
+      writeNote(base, { path: '../escape.md', content: 'x', create_dirs: true, dry_run: false })
+    ).rejects.toThrow('Path escapes root')
   })
 
   it('rejects paths outside KB zones', async () => {
-    await expect(writeNote(base, { path: 'root-level.md', content: 'x', create_dirs: true, dry_run: false })).rejects.toThrow('outside KB zones')
+    await expect(
+      writeNote(base, { path: 'root-level.md', content: 'x', create_dirs: true, dry_run: false })
+    ).rejects.toThrow('outside KB zones')
   })
 
   it('overwrites an existing file', async () => {
@@ -82,15 +100,30 @@ describe('writeNote', () => {
   })
 
   it('dry_run previews a new file without writing', async () => {
-    const result = await writeNote(base, { path: `${ZONE}/preview.md`, content: 'hello world', create_dirs: true, dry_run: true })
+    const result = await writeNote(base, {
+      path: `${ZONE}/preview.md`,
+      content: 'hello world',
+      create_dirs: true,
+      dry_run: true
+    })
     expect(result).toEqual({ path: `${ZONE}/preview.md`, bytes: 11, dry_run: true, action: 'would create (11 bytes)' })
     await expect(fs.access(zp('preview.md'))).rejects.toThrow()
   })
 
   it('dry_run previews an overwrite with both old and new byte counts', async () => {
     await writeNote(base, { path: `${ZONE}/doc.md`, content: 'short', create_dirs: true, dry_run: false })
-    const result = await writeNote(base, { path: `${ZONE}/doc.md`, content: 'a much longer body', create_dirs: true, dry_run: true })
-    expect(result).toEqual({ path: `${ZONE}/doc.md`, bytes: 18, dry_run: true, action: 'would overwrite (5 → 18 bytes)' })
+    const result = await writeNote(base, {
+      path: `${ZONE}/doc.md`,
+      content: 'a much longer body',
+      create_dirs: true,
+      dry_run: true
+    })
+    expect(result).toEqual({
+      path: `${ZONE}/doc.md`,
+      bytes: 18,
+      dry_run: true,
+      action: 'would overwrite (5 → 18 bytes)'
+    })
     const onDisk = await fs.readFile(zp('doc.md'), 'utf-8')
     expect(onDisk).toBe('short')
   })
@@ -98,7 +131,9 @@ describe('writeNote', () => {
   it('dry_run rethrows non-ENOENT errors from the existence probe (e.g. ENOTDIR)', async () => {
     await fs.writeFile(zp('blocker.md'), 'x', 'utf-8')
     // "blocker.md" is a file; "blocker.md/child.md" forces ENOTDIR from fs.stat.
-    await expect(writeNote(base, { path: `${ZONE}/blocker.md/child.md`, content: 'y', create_dirs: false, dry_run: true })).rejects.toThrow(/ENOTDIR/)
+    await expect(
+      writeNote(base, { path: `${ZONE}/blocker.md/child.md`, content: 'y', create_dirs: false, dry_run: true })
+    ).rejects.toThrow(/ENOTDIR/)
   })
 })
 
@@ -151,7 +186,9 @@ describe('readNote', () => {
 
   it('errors when frontmatter is requested but the opening fence never closes', async () => {
     await fs.writeFile(zp('bad.md'), '---\ntags: x\nno closing fence\n', 'utf-8')
-    await expect(readNote(base, { path: `${ZONE}/bad.md`, part: 'frontmatter' })).rejects.toThrow(`Malformed frontmatter in "${ZONE}/bad.md"`)
+    await expect(readNote(base, { path: `${ZONE}/bad.md`, part: 'frontmatter' })).rejects.toThrow(
+      `Malformed frontmatter in "${ZONE}/bad.md"`
+    )
   })
 })
 
@@ -205,7 +242,9 @@ describe('listNotes', () => {
   })
 
   it('returns a friendly error when the directory is missing', async () => {
-    await expect(listNotes(base, { path: `${ZONE}/does-not-exist`, recursive: false })).rejects.toThrow(`Directory not found: "${ZONE}/does-not-exist"`)
+    await expect(listNotes(base, { path: `${ZONE}/does-not-exist`, recursive: false })).rejects.toThrow(
+      `Directory not found: "${ZONE}/does-not-exist"`
+    )
   })
 
   it('returns a friendly error for path traversal', async () => {
@@ -249,7 +288,9 @@ describe('listFolders', () => {
   })
 
   it('returns friendly error directory missing', async () => {
-    await expect(listFolders(base, { path: `${ZONE}/does-not-exist`, recursive: false })).rejects.toThrow(`Directory not found: "${ZONE}/does-not-exist"`)
+    await expect(listFolders(base, { path: `${ZONE}/does-not-exist`, recursive: false })).rejects.toThrow(
+      `Directory not found: "${ZONE}/does-not-exist"`
+    )
   })
 
   it('returns friendly error path traversal', async () => {
@@ -271,7 +312,9 @@ describe('zone-scoping', () => {
   })
 
   it('writeNote rejects paths outside KB zones', async () => {
-    await expect(writeNote(base, { path: 'README.md', content: 'x', create_dirs: true, dry_run: false })).rejects.toThrow('outside KB zones')
+    await expect(
+      writeNote(base, { path: 'README.md', content: 'x', create_dirs: true, dry_run: false })
+    ).rejects.toThrow('outside KB zones')
   })
 })
 
@@ -290,11 +333,15 @@ describe('protected path rules', () => {
 
   it('writeNote refuses root-level meta files (outside zones)', async () => {
     // Root README outside zone; zone error fires first
-    await expect(writeNote(base, { path: 'README.md', content: 'x', create_dirs: true, dry_run: false })).rejects.toThrow('outside KB zones')
+    await expect(
+      writeNote(base, { path: 'README.md', content: 'x', create_dirs: true, dry_run: false })
+    ).rejects.toThrow('outside KB zones')
   })
 
   it('writeNote refuses dotfiles within a zone', async () => {
-    await expect(writeNote(base, { path: `${ZONE}/.obsidian/foo.md`, content: 'x', create_dirs: true, dry_run: false })).rejects.toThrow('Path is protected')
+    await expect(
+      writeNote(base, { path: `${ZONE}/.obsidian/foo.md`, content: 'x', create_dirs: true, dry_run: false })
+    ).rejects.toThrow('Path is protected')
   })
 
   it('listNotes ignores root meta files, even when a KB note has the same name', async () => {
@@ -335,9 +382,9 @@ describe('path hardening', () => {
     try {
       await fs.mkdir(outside, { recursive: true })
       await fs.symlink(outside, zp('leakdir'))
-      await expect(writeNote(base, { path: `${ZONE}/leakdir/x.md`, content: 'leaked', create_dirs: false, dry_run: false })).rejects.toThrow(
-        'Path escapes root'
-      )
+      await expect(
+        writeNote(base, { path: `${ZONE}/leakdir/x.md`, content: 'leaked', create_dirs: false, dry_run: false })
+      ).rejects.toThrow('Path escapes root')
       await expect(fs.readFile(path.join(outside, 'x.md'), 'utf-8')).rejects.toThrow()
     } finally {
       await fs.rm(outside, { recursive: true, force: true })
@@ -358,21 +405,23 @@ describe('renameNote', () => {
   it('returns an error when destination already exists', async () => {
     await fs.writeFile(zp('a.md'), 'a', 'utf-8')
     await fs.writeFile(zp('b.md'), 'b', 'utf-8')
-    await expect(renameNote(base, { from: `${ZONE}/a.md`, to: `${ZONE}/b.md`, create_dirs: true })).rejects.toThrow('Destination')
+    await expect(renameNote(base, { from: `${ZONE}/a.md`, to: `${ZONE}/b.md`, create_dirs: true })).rejects.toThrow(
+      'Destination'
+    )
     expect(await fs.readFile(zp('a.md'), 'utf-8')).toBe('a')
     expect(await fs.readFile(zp('b.md'), 'utf-8')).toBe('b')
   })
 
   it('returns a friendly error when the source is missing', async () => {
-    await expect(renameNote(base, { from: `${ZONE}/missing.md`, to: `${ZONE}/new.md`, create_dirs: true })).rejects.toThrow(
-      `File not found: "${ZONE}/missing.md"`
-    )
+    await expect(
+      renameNote(base, { from: `${ZONE}/missing.md`, to: `${ZONE}/new.md`, create_dirs: true })
+    ).rejects.toThrow(`File not found: "${ZONE}/missing.md"`)
   })
 
   it('rejects a non-.md destination', async () => {
-    await expect(renameNote(base, { from: `${ZONE}/a.md`, to: `${ZONE}/b.md`.replace('.md', '.txt'), create_dirs: true })).rejects.toThrow(
-      'Notes must end in ".md"'
-    )
+    await expect(
+      renameNote(base, { from: `${ZONE}/a.md`, to: `${ZONE}/b.md`.replace('.md', '.txt'), create_dirs: true })
+    ).rejects.toThrow('Notes must end in ".md"')
   })
 
   it('rejects renaming to the same path', async () => {
@@ -390,22 +439,28 @@ describe('renameNote', () => {
 
   it('fails to rename from a directory (not a file)', async () => {
     await fs.mkdir(zp('dir.md'), { recursive: true })
-    await expect(renameNote(base, { from: `${ZONE}/dir.md`, to: `${ZONE}/new.md`, create_dirs: false })).rejects.toThrow('Not a note file')
+    await expect(
+      renameNote(base, { from: `${ZONE}/dir.md`, to: `${ZONE}/new.md`, create_dirs: false })
+    ).rejects.toThrow('Not a note file')
   })
 
   it('fails when create_dirs is false and the destination parent is missing', async () => {
     await fs.writeFile(zp('src.md'), 'x', 'utf-8')
-    await expect(renameNote(base, { from: `${ZONE}/src.md`, to: `${ZONE}/missing/dst.md`, create_dirs: false })).rejects.toThrow(
-      `destination parent missing for "${ZONE}/missing/dst.md"`
-    )
-    await expect(renameNote(base, { from: `${ZONE}/src.md`, to: `${ZONE}/missing/dst.md`, create_dirs: false })).rejects.toThrow('set create_dirs: true')
+    await expect(
+      renameNote(base, { from: `${ZONE}/src.md`, to: `${ZONE}/missing/dst.md`, create_dirs: false })
+    ).rejects.toThrow(`destination parent missing for "${ZONE}/missing/dst.md"`)
+    await expect(
+      renameNote(base, { from: `${ZONE}/src.md`, to: `${ZONE}/missing/dst.md`, create_dirs: false })
+    ).rejects.toThrow('set create_dirs: true')
     expect(await fs.readFile(zp('src.md'), 'utf-8')).toBe('x')
   })
 
   it('reports ENOTDIR when the path traverses through a file', async () => {
     await fs.writeFile(zp('blocker.md'), 'x', 'utf-8')
     await fs.writeFile(zp('src.md'), 'y', 'utf-8')
-    await expect(renameNote(base, { from: `${ZONE}/src.md`, to: `${ZONE}/blocker.md/dst.md`, create_dirs: false })).rejects.toThrow()
+    await expect(
+      renameNote(base, { from: `${ZONE}/src.md`, to: `${ZONE}/blocker.md/dst.md`, create_dirs: false })
+    ).rejects.toThrow()
   })
 })
 
@@ -413,19 +468,33 @@ describe('deleteNote', () => {
   it('deletes a note and returns byte count', async () => {
     await fs.writeFile(zp('a.md'), 'hello', 'utf-8')
     const result = await deleteNote(base, { path: `${ZONE}/a.md`, dry_run: false })
-    expect(result).toEqual({ path: `${ZONE}/a.md`, bytes: 5, deleted: true, dry_run: false, action: 'deleted (5 bytes)' })
+    expect(result).toEqual({
+      path: `${ZONE}/a.md`,
+      bytes: 5,
+      deleted: true,
+      dry_run: false,
+      action: 'deleted (5 bytes)'
+    })
     await expect(fs.access(zp('a.md'))).rejects.toThrow()
   })
 
   it('dry_run reports what would be deleted without deleting', async () => {
     await fs.writeFile(zp('a.md'), 'hello', 'utf-8')
     const result = await deleteNote(base, { path: `${ZONE}/a.md`, dry_run: true })
-    expect(result).toEqual({ path: `${ZONE}/a.md`, bytes: 5, deleted: false, dry_run: true, action: 'would delete (5 bytes)' })
+    expect(result).toEqual({
+      path: `${ZONE}/a.md`,
+      bytes: 5,
+      deleted: false,
+      dry_run: true,
+      action: 'would delete (5 bytes)'
+    })
     await fs.access(zp('a.md')) // throws if file was deleted
   })
 
   it('returns a friendly error when the file is missing', async () => {
-    await expect(deleteNote(base, { path: `${ZONE}/missing.md`, dry_run: false })).rejects.toThrow(`File not found: "${ZONE}/missing.md"`)
+    await expect(deleteNote(base, { path: `${ZONE}/missing.md`, dry_run: false })).rejects.toThrow(
+      `File not found: "${ZONE}/missing.md"`
+    )
   })
 
   it('rejects a non-.md path', async () => {
@@ -444,7 +513,9 @@ describe('deleteNote', () => {
 
   it('returns an error when path is a directory not a file', async () => {
     await fs.mkdir(zp('subdir'), { recursive: true })
-    await expect(deleteNote(base, { path: `${ZONE}/subdir`, dry_run: false })).rejects.toThrow('Notes must end in ".md"')
+    await expect(deleteNote(base, { path: `${ZONE}/subdir`, dry_run: false })).rejects.toThrow(
+      'Notes must end in ".md"'
+    )
   })
 })
 

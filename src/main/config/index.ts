@@ -32,7 +32,10 @@ const zonesSchema = () =>
     .describe('Top-level folder name resolved for each canonical KB zone.')
 
 const stagingSchema = () =>
-  z.object({ inbound: z.string(), outbound: z.string() }).strict().describe('Folder names of the inbound (+) and outbound (-) staging areas.')
+  z
+    .object({ inbound: z.string(), outbound: z.string() })
+    .strict()
+    .describe('Folder names of the inbound (+) and outbound (-) staging areas.')
 
 /**
  * Shape of the value `readKbConfig` returns, and — via the same schema — the
@@ -44,7 +47,9 @@ export const kbConfigResultSchema = z
     kb: z.string().describe('Alias of the knowledge base this zone map, allow-list and .ki-config.toml belong to.'),
     zones: zonesSchema(),
     staging: stagingSchema(),
-    rootFileAllowlist: z.array(z.string()).describe('Exact root-relative paths readable through kb_read; never writable.'),
+    rootFileAllowlist: z
+      .array(z.string())
+      .describe('Exact root-relative paths readable through kb_read; never writable.'),
     kiConfigPresent: z.boolean().describe('True when a .ki-config.toml was found at this KB root on server startup.'),
     kiConfigRaw: z.string().describe('Raw .ki-config.toml text, or a placeholder when the file is absent.'),
     knowledgeBases: z
@@ -57,7 +62,9 @@ export const kbConfigResultSchema = z
           })
           .strict()
       )
-      .describe('Every knowledge base this server may reach, with its resolved zone names. No filesystem paths: bases are addressed by alias only.')
+      .describe(
+        'Every knowledge base this server may reach, with its resolved zone names. No filesystem paths: bases are addressed by alias only.'
+      )
   })
   .strict()
 

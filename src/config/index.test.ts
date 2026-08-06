@@ -25,7 +25,9 @@ afterAll(() => {
 })
 
 /** Declare one or more bases the way an install's `env` block would. */
-const declare = (bases: Record<string, string>): Record<string, string> => ({ [KNOWLEDGE_BASES_ENV_VAR]: JSON.stringify(bases) })
+const declare = (bases: Record<string, string>): Record<string, string> => ({
+  [KNOWLEDGE_BASES_ENV_VAR]: JSON.stringify(bases)
+})
 
 const load = (extra: Record<string, string> = {}) => loadConfig({ ...declare({ primary: TOML_ROOT }), ...extra })
 
@@ -69,7 +71,9 @@ describe('loadConfig', () => {
 
     it('throws when the declaration is not a JSON object', () => {
       for (const raw of ['[]', 'null', '3', '"/tmp/kb"']) {
-        expect(loadRaw(raw), `declaration ${raw}`).toThrow(new RegExp(`${KNOWLEDGE_BASES_ENV_VAR} must be a JSON object`))
+        expect(loadRaw(raw), `declaration ${raw}`).toThrow(
+          new RegExp(`${KNOWLEDGE_BASES_ENV_VAR} must be a JSON object`)
+        )
       }
     })
 
@@ -82,13 +86,17 @@ describe('loadConfig', () => {
       // JSON.parse keeps only the last of two identical keys, so a duplicate
       // would otherwise silently pick a winner — for a base the caller believes
       // points somewhere else.
-      expect(loadRaw(`{"kit-pkb":${JSON.stringify(TOML_ROOT)},"kit-pkb":${JSON.stringify(SECOND_ROOT)}}`)).toThrow(/declares alias "kit-pkb" more than once/)
+      expect(loadRaw(`{"kit-pkb":${JSON.stringify(TOML_ROOT)},"kit-pkb":${JSON.stringify(SECOND_ROOT)}}`)).toThrow(
+        /declares alias "kit-pkb" more than once/
+      )
     })
 
     it('throws when a declared path is also a declared value elsewhere but no alias repeats', () => {
       // Guards the duplicate scan's key/value alternation: "b" appears as both a
       // value and a later key, which must NOT read as a repeated alias.
-      const cfg = loadRaw(`{"a":${JSON.stringify(TOML_ROOT)},${JSON.stringify(TOML_ROOT)}:${JSON.stringify(SECOND_ROOT)}}`)
+      const cfg = loadRaw(
+        `{"a":${JSON.stringify(TOML_ROOT)},${JSON.stringify(TOML_ROOT)}:${JSON.stringify(SECOND_ROOT)}}`
+      )
       expect(cfg).toThrow(/is not a safe identifier/)
     })
 
@@ -97,8 +105,20 @@ describe('loadConfig', () => {
     })
 
     it('throws when an alias is not a safe identifier', () => {
-      for (const alias of ['', '_private', '.hidden', '-dash', 'has space', 'has/slash', '..', '__proto__', 'a'.repeat(65)]) {
-        expect(loadRaw(`{${JSON.stringify(alias)}:${JSON.stringify(TOML_ROOT)}}`), `alias ${alias}`).toThrow(/is not a safe identifier/)
+      for (const alias of [
+        '',
+        '_private',
+        '.hidden',
+        '-dash',
+        'has space',
+        'has/slash',
+        '..',
+        '__proto__',
+        'a'.repeat(65)
+      ]) {
+        expect(loadRaw(`{${JSON.stringify(alias)}:${JSON.stringify(TOML_ROOT)}}`), `alias ${alias}`).toThrow(
+          /is not a safe identifier/
+        )
       }
     })
 
@@ -118,21 +138,29 @@ describe('loadConfig', () => {
     })
 
     it('throws when a declared path does not exist — at startup, not on first call', () => {
-      expect(loadRaw(`{"kit-pkb":${JSON.stringify(path.join(TOML_ROOT, 'no-such-kb'))}}`)).toThrow(/points at a path that does not exist/)
+      expect(loadRaw(`{"kit-pkb":${JSON.stringify(path.join(TOML_ROOT, 'no-such-kb'))}}`)).toThrow(
+        /points at a path that does not exist/
+      )
     })
 
     it('throws when a declared path is not a directory', () => {
       const filePath = path.join(TOML_ROOT, 'not-a-directory')
       fs.writeFileSync(filePath, 'x', 'utf-8')
       try {
-        expect(loadRaw(`{"kit-pkb":${JSON.stringify(filePath)}}`)).toThrow(/points at something that is not a directory/)
+        expect(loadRaw(`{"kit-pkb":${JSON.stringify(filePath)}}`)).toThrow(
+          /points at something that is not a directory/
+        )
       } finally {
         fs.rmSync(filePath)
       }
     })
 
     it('resolves each base\u2019s own .ki-config.toml once, at startup', () => {
-      fs.writeFileSync(path.join(SECOND_ROOT, '.ki-config.toml'), '[knowledgeislands-kb]\n[knowledgeislands-kb.zones]\nPillars = "Areas"\n', 'utf-8')
+      fs.writeFileSync(
+        path.join(SECOND_ROOT, '.ki-config.toml'),
+        '[knowledgeislands-kb]\n[knowledgeislands-kb.zones]\nPillars = "Areas"\n',
+        'utf-8'
+      )
       try {
         const cfg = loadDeclared({ first: TOML_ROOT, second: SECOND_ROOT })
 
@@ -152,7 +180,9 @@ describe('loadConfig', () => {
 
     it('refuses an undeclared alias outright rather than defaulting to a base', () => {
       const cfg = loadDeclared({ first: TOML_ROOT, second: SECOND_ROOT })
-      expect(() => selectKnowledgeBase(cfg, 'third')).toThrow('Unknown knowledge base "third". Declared aliases: first, second')
+      expect(() => selectKnowledgeBase(cfg, 'third')).toThrow(
+        'Unknown knowledge base "third". Declared aliases: first, second'
+      )
     })
 
     it('refuses an inherited Object.prototype key as an alias', () => {
@@ -174,11 +204,15 @@ describe('loadConfig', () => {
     })
 
     it('throws on a non-numeric value', () => {
-      expect(() => load({ MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES: 'oops' })).toThrow(/Invalid MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES="oops"/)
+      expect(() => load({ MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES: 'oops' })).toThrow(
+        /Invalid MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES="oops"/
+      )
     })
 
     it('throws on a negative value', () => {
-      expect(() => load({ MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES: '-1' })).toThrow(/Invalid MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES="-1"/)
+      expect(() => load({ MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES: '-1' })).toThrow(
+        /Invalid MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES="-1"/
+      )
     })
 
     it('defaults auditLogKeep to 5 and parses an override', () => {
@@ -193,7 +227,9 @@ describe('loadConfig', () => {
     })
 
     it('throws on unknown access level', () => {
-      expect(() => load({ MCP_KI_KB_FS_ACCESS_LEVEL: 'godmode' })).toThrow(/Invalid MCP_KI_KB_FS_ACCESS_LEVEL="godmode"/)
+      expect(() => load({ MCP_KI_KB_FS_ACCESS_LEVEL: 'godmode' })).toThrow(
+        /Invalid MCP_KI_KB_FS_ACCESS_LEVEL="godmode"/
+      )
     })
 
     it('accepts an explicit valid access level', () => {
@@ -222,7 +258,9 @@ describe('loadConfig', () => {
     })
 
     it('expands ~/ and resolves an override', () => {
-      expect(load({ MCP_KI_KB_FS_AUDIT_LOG_PATH: '~/logs/a.jsonl' }).auditLogPath).toBe(path.join(os.homedir(), 'logs', 'a.jsonl'))
+      expect(load({ MCP_KI_KB_FS_AUDIT_LOG_PATH: '~/logs/a.jsonl' }).auditLogPath).toBe(
+        path.join(os.homedir(), 'logs', 'a.jsonl')
+      )
     })
   })
 
@@ -262,7 +300,8 @@ describe('loadConfig', () => {
     })
 
     it('uses exact root-file allow-list paths from .ki-config.toml', () => {
-      const toml = '[knowledgeislands-kb]\nroot_file_allowlist = ["README.md", "GEMINI.md", ".github/copilot-instructions.md"]\n'
+      const toml =
+        '[knowledgeislands-kb]\nroot_file_allowlist = ["README.md", "GEMINI.md", ".github/copilot-instructions.md"]\n'
       fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
       const cfg = primary(load())
       expect(cfg.rootFileAllowlist).toEqual(['README.md', 'GEMINI.md', '.github/copilot-instructions.md'])
@@ -279,7 +318,16 @@ describe('loadConfig', () => {
     it('rejects every malformed shape of a root_file_allowlist entry', () => {
       // One case per guard arm in isRootFileAllowlistPath: empty, untrimmed, absolute,
       // home-relative, backslash, NUL, empty segment, and a "." segment.
-      const bad = ['""', '" README.md"', '"/etc/passwd"', '"~/secrets.md"', '"a\\\\b.md"', '"a\\u0000b.md"', '"a//b.md"', '"./README.md"']
+      const bad = [
+        '""',
+        '" README.md"',
+        '"/etc/passwd"',
+        '"~/secrets.md"',
+        '"a\\\\b.md"',
+        '"a\\u0000b.md"',
+        '"a//b.md"',
+        '"./README.md"'
+      ]
       for (const entry of bad) {
         const toml = `[knowledgeislands-kb]\nroot_file_allowlist = [${entry}]\n`
         fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')

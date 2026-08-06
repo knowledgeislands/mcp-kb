@@ -33,7 +33,9 @@ describe('appendAuditEvent / withAuditLog (mcp-ki-kb-fs)', () => {
 
   it('appends an event line for a destructive-level tool', async () => {
     const { withAuditLog } = await import('./audit-log.js')
-    const wrapped = withAuditLog(auditCfg(), 'kb_note_write', 'destructive', async () => ({ content: [{ type: 'text', text: 'ok' }] }))
+    const wrapped = withAuditLog(auditCfg(), 'kb_note_write', 'destructive', async () => ({
+      content: [{ type: 'text', text: 'ok' }]
+    }))
     await wrapped({ path: 'memo.md' })
     await flushAsync()
     const event = JSON.parse((await fs.readFile(logPath, 'utf-8')).trim())
@@ -46,7 +48,9 @@ describe('appendAuditEvent / withAuditLog (mcp-ki-kb-fs)', () => {
 
   it('redacts the content field on writeNote-style args', async () => {
     const { withAuditLog } = await import('./audit-log.js')
-    const wrapped = withAuditLog(auditCfg(), 'kb_note_write', 'destructive', async () => ({ content: [{ type: 'text', text: 'ok' }] }))
+    const wrapped = withAuditLog(auditCfg(), 'kb_note_write', 'destructive', async () => ({
+      content: [{ type: 'text', text: 'ok' }]
+    }))
     await wrapped({ path: 'memo.md', content: 'x'.repeat(5000) })
     await flushAsync()
     const event = JSON.parse((await fs.readFile(logPath, 'utf-8')).trim())
@@ -111,7 +115,9 @@ describe('appendAuditEvent / withAuditLog (mcp-ki-kb-fs)', () => {
     expect(((await fs.stat(logPath)).mode & 0o777).toString(8)).toBe('644')
 
     const { withAuditLog } = await import('./audit-log.js')
-    const wrapped = withAuditLog(auditCfg(), 'kb_note_write', 'destructive', async () => ({ content: [{ type: 'text', text: 'ok' }] }))
+    const wrapped = withAuditLog(auditCfg(), 'kb_note_write', 'destructive', async () => ({
+      content: [{ type: 'text', text: 'ok' }]
+    }))
     await wrapped({})
     await flushAsync()
 
@@ -121,7 +127,9 @@ describe('appendAuditEvent / withAuditLog (mcp-ki-kb-fs)', () => {
 
   it('truncates args when the serialized form exceeds MAX_ARG_CHARS', async () => {
     const { withAuditLog } = await import('./audit-log.js')
-    const wrapped = withAuditLog(auditCfg(), 'kb_note_write', 'destructive', async () => ({ content: [{ type: 'text', text: 'ok' }] }))
+    const wrapped = withAuditLog(auditCfg(), 'kb_note_write', 'destructive', async () => ({
+      content: [{ type: 'text', text: 'ok' }]
+    }))
     // `content` gets redacted (short string), so use a different key with a huge value.
     await wrapped({ huge: 'x'.repeat(5000) })
     await flushAsync()
@@ -132,7 +140,9 @@ describe('appendAuditEvent / withAuditLog (mcp-ki-kb-fs)', () => {
 
   it('logs array args verbatim (sanitizeArgs only rewrites plain objects)', async () => {
     const { withAuditLog } = await import('./audit-log.js')
-    const wrapped = withAuditLog(auditCfg(), 'kb_note_write', 'destructive', async () => ({ content: [{ type: 'text', text: 'ok' }] }))
+    const wrapped = withAuditLog(auditCfg(), 'kb_note_write', 'destructive', async () => ({
+      content: [{ type: 'text', text: 'ok' }]
+    }))
     await wrapped([1, 2, 3])
     await flushAsync()
     const event = JSON.parse((await fs.readFile(logPath, 'utf-8')).trim())
@@ -141,7 +151,9 @@ describe('appendAuditEvent / withAuditLog (mcp-ki-kb-fs)', () => {
 
   it('redacts URL credentials across string, array, nested-object and primitive arg values', async () => {
     const { withAuditLog } = await import('./audit-log.js')
-    const wrapped = withAuditLog(auditCfg(), 'kb_note_write', 'destructive', async () => ({ content: [{ type: 'text', text: 'ok' }] }))
+    const wrapped = withAuditLog(auditCfg(), 'kb_note_write', 'destructive', async () => ({
+      content: [{ type: 'text', text: 'ok' }]
+    }))
     await wrapped({
       url: 'https://user:tok3n@example.com/x',
       list: ['https://user:tok3n@example.com/y'],
@@ -225,7 +237,9 @@ describe('appendAuditEvent / withAuditLog (mcp-ki-kb-fs)', () => {
     // Make the log path a directory so appendFile fails with EISDIR.
     await fs.mkdir(logPath, { recursive: true })
     const { withAuditLog } = await import('./audit-log.js')
-    const wrapped = withAuditLog(auditCfg(), 'kb_note_write', 'destructive', async () => ({ content: [{ type: 'text', text: 'ok' }] }))
+    const wrapped = withAuditLog(auditCfg(), 'kb_note_write', 'destructive', async () => ({
+      content: [{ type: 'text', text: 'ok' }]
+    }))
     // Should NOT throw — appendAuditEvent catches all write errors.
     await expect(wrapped({})).resolves.toBeDefined()
   })
@@ -243,7 +257,9 @@ describe('levelFromAnnotations / makeAccessGatedRegister (mcp-ki-kb-fs)', () => 
   })
 
   it('maps explicit non-destructive write annotations to write', () => {
-    expect(levelFromAnnotations({ readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false })).toBe('write')
+    expect(
+      levelFromAnnotations({ readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false })
+    ).toBe('write')
   })
 
   it('defaults to destructive (fail-safe) when annotations are missing', () => {
@@ -254,8 +270,16 @@ describe('levelFromAnnotations / makeAccessGatedRegister (mcp-ki-kb-fs)', () => 
     const registerTool = vi.fn()
     const fakeServer = { registerTool } as unknown as Parameters<typeof makeAccessGatedRegister>[0]
     const gated = makeAccessGatedRegister(fakeServer, 'read', auditOff)
-    gated('kb_note_read', { title: 't', description: 'd', annotations: READ_ONLY } as never, (async () => ({ content: [] })) as never)
-    gated('kb_note_write', { title: 't', description: 'd', annotations: DESTRUCTIVE } as never, (async () => ({ content: [] })) as never)
+    gated(
+      'kb_note_read',
+      { title: 't', description: 'd', annotations: READ_ONLY } as never,
+      (async () => ({ content: [] })) as never
+    )
+    gated(
+      'kb_note_write',
+      { title: 't', description: 'd', annotations: DESTRUCTIVE } as never,
+      (async () => ({ content: [] })) as never
+    )
     expect(registerTool).toHaveBeenCalledTimes(1)
     expect((registerTool.mock.calls[0] as unknown[])[0]).toBe('kb_note_read')
   })
@@ -265,9 +289,21 @@ describe('levelFromAnnotations / makeAccessGatedRegister (mcp-ki-kb-fs)', () => 
     const fakeServer = { registerTool } as unknown as Parameters<typeof makeAccessGatedRegister>[0]
     const gated = makeAccessGatedRegister(fakeServer, 'write', auditOff)
     const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const
-    gated('kb_note_read', { title: 't', description: 'd', annotations: READ_ONLY } as never, (async () => ({ content: [] })) as never)
-    gated('kb_note_add', { title: 't', description: 'd', annotations: WRITE } as never, (async () => ({ content: [] })) as never)
-    gated('kb_note_delete', { title: 't', description: 'd', annotations: DESTRUCTIVE } as never, (async () => ({ content: [] })) as never)
+    gated(
+      'kb_note_read',
+      { title: 't', description: 'd', annotations: READ_ONLY } as never,
+      (async () => ({ content: [] })) as never
+    )
+    gated(
+      'kb_note_add',
+      { title: 't', description: 'd', annotations: WRITE } as never,
+      (async () => ({ content: [] })) as never
+    )
+    gated(
+      'kb_note_delete',
+      { title: 't', description: 'd', annotations: DESTRUCTIVE } as never,
+      (async () => ({ content: [] })) as never
+    )
     expect(registerTool).toHaveBeenCalledTimes(2)
     expect((registerTool.mock.calls[0] as unknown[])[0]).toBe('kb_note_read')
     expect((registerTool.mock.calls[1] as unknown[])[0]).toBe('kb_note_add')
@@ -277,8 +313,16 @@ describe('levelFromAnnotations / makeAccessGatedRegister (mcp-ki-kb-fs)', () => 
     const registerTool = vi.fn()
     const fakeServer = { registerTool } as unknown as Parameters<typeof makeAccessGatedRegister>[0]
     const gated = makeAccessGatedRegister(fakeServer, 'destructive', auditOff)
-    gated('kb_note_read', { title: 't', description: 'd', annotations: READ_ONLY } as never, (async () => ({ content: [] })) as never)
-    gated('kb_note_delete', { title: 't', description: 'd', annotations: DESTRUCTIVE } as never, (async () => ({ content: [] })) as never)
+    gated(
+      'kb_note_read',
+      { title: 't', description: 'd', annotations: READ_ONLY } as never,
+      (async () => ({ content: [] })) as never
+    )
+    gated(
+      'kb_note_delete',
+      { title: 't', description: 'd', annotations: DESTRUCTIVE } as never,
+      (async () => ({ content: [] })) as never
+    )
     expect(registerTool).toHaveBeenCalledTimes(2)
   })
 

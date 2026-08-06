@@ -27,7 +27,9 @@ const config = loadConfig()
 
 console.error('mcp-ki-kb-fs starting...')
 console.error(`  MCP_KI_KB_FS_ACCESS_LEVEL=${config.accessLevel}`)
-console.error(`  MCP_KI_KB_FS_AUDIT_LOG=${config.auditLogMode}${config.auditLogMode === 'off' ? '' : ` (path: ${config.auditLogPath})`}`)
+console.error(
+  `  MCP_KI_KB_FS_AUDIT_LOG=${config.auditLogMode}${config.auditLogMode === 'off' ? '' : ` (path: ${config.auditLogPath})`}`
+)
 console.error(`  ${KNOWLEDGE_BASES_ENV_VAR} — ${config.knowledgeBases.size} knowledge base(s):`)
 for (const base of config.knowledgeBases.values()) {
   console.error(`    ${base.alias} → ${base.rootPath} (zones: ${Object.values(base.zones).join(', ')})`)

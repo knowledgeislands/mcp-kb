@@ -39,7 +39,10 @@ beforeAll(async () => {
   await fs.writeFile(path.join(A_ROOT, ZONE, 'Own.md'), '# a own\n', 'utf-8')
   await fs.writeFile(path.join(B_ROOT, ZONE, 'Secret.md'), SECRET_TEXT, 'utf-8')
 
-  const cfg = loadConfig({ [KNOWLEDGE_BASES_ENV_VAR]: JSON.stringify({ 'kb-a': A_ROOT, 'kb-b': B_ROOT }), MCP_KI_KB_FS_AUDIT_LOG: 'off' })
+  const cfg = loadConfig({
+    [KNOWLEDGE_BASES_ENV_VAR]: JSON.stringify({ 'kb-a': A_ROOT, 'kb-b': B_ROOT }),
+    MCP_KI_KB_FS_AUDIT_LOG: 'off'
+  })
   baseA = selectKnowledgeBase(cfg, 'kb-a')
   baseB = selectKnowledgeBase(cfg, 'kb-b')
 })
@@ -76,15 +79,24 @@ describe('relative paths under one alias cannot resolve into another declared ba
 
   it('refuses every traversal shape on list', async () => {
     for (const attempt of ['../kb-b', `${ZONE}/../../kb-b`, path.join(B_ROOT, ZONE), '..\\kb-b']) {
-      await expect(listContent(baseA, { path: attempt, kind: 'files', recursive: true }), `listContent ${attempt}`).rejects.toThrow()
+      await expect(
+        listContent(baseA, { path: attempt, kind: 'files', recursive: true }),
+        `listContent ${attempt}`
+      ).rejects.toThrow()
       await expect(listNotes(baseA, { path: attempt, recursive: true }), `listNotes ${attempt}`).rejects.toThrow()
     }
   })
 
   it('refuses every traversal shape on write, and leaves the sibling base unmodified', async () => {
     for (const attempt of escapes()) {
-      await expect(writeFile(baseA, { path: attempt, content: 'overwritten', create_dirs: true, dry_run: false }), `writeFile ${attempt}`).rejects.toThrow()
-      await expect(writeNote(baseA, { path: attempt, content: 'overwritten', create_dirs: true, dry_run: false }), `writeNote ${attempt}`).rejects.toThrow()
+      await expect(
+        writeFile(baseA, { path: attempt, content: 'overwritten', create_dirs: true, dry_run: false }),
+        `writeFile ${attempt}`
+      ).rejects.toThrow()
+      await expect(
+        writeNote(baseA, { path: attempt, content: 'overwritten', create_dirs: true, dry_run: false }),
+        `writeNote ${attempt}`
+      ).rejects.toThrow()
     }
 
     await expect(fs.readFile(path.join(B_ROOT, SECRET), 'utf-8')).resolves.toBe(SECRET_TEXT)
@@ -100,10 +112,18 @@ describe('relative paths under one alias cannot resolve into another declared ba
   })
 
   it('refuses to rename or move content across a base boundary, in either direction', async () => {
-    await expect(renameFile(baseA, { from: `${ZONE}/Own.md`, to: `../kb-b/${ZONE}/Stolen.md`, create_dirs: true })).rejects.toThrow()
-    await expect(renameNote(baseA, { from: `${ZONE}/Own.md`, to: `../kb-b/${ZONE}/Stolen.md`, create_dirs: true })).rejects.toThrow()
-    await expect(renameFile(baseA, { from: `../kb-b/${SECRET}`, to: `${ZONE}/Stolen.md`, create_dirs: true })).rejects.toThrow()
-    await expect(renameNote(baseA, { from: `../kb-b/${SECRET}`, to: `${ZONE}/Stolen.md`, create_dirs: true })).rejects.toThrow()
+    await expect(
+      renameFile(baseA, { from: `${ZONE}/Own.md`, to: `../kb-b/${ZONE}/Stolen.md`, create_dirs: true })
+    ).rejects.toThrow()
+    await expect(
+      renameNote(baseA, { from: `${ZONE}/Own.md`, to: `../kb-b/${ZONE}/Stolen.md`, create_dirs: true })
+    ).rejects.toThrow()
+    await expect(
+      renameFile(baseA, { from: `../kb-b/${SECRET}`, to: `${ZONE}/Stolen.md`, create_dirs: true })
+    ).rejects.toThrow()
+    await expect(
+      renameNote(baseA, { from: `../kb-b/${SECRET}`, to: `${ZONE}/Stolen.md`, create_dirs: true })
+    ).rejects.toThrow()
 
     await expect(fs.access(path.join(B_ROOT, ZONE, 'Stolen.md'))).rejects.toThrow()
     await expect(fs.access(path.join(A_ROOT, ZONE, 'Stolen.md'))).rejects.toThrow()
@@ -133,11 +153,13 @@ describe('relative paths under one alias cannot resolve into another declared ba
     const linkDir = path.join(A_ROOT, ZONE, 'mirror')
     await fs.symlink(path.join(B_ROOT, ZONE), linkDir)
     try {
-      await expect(listContent(baseA, { path: `${ZONE}/mirror`, kind: 'files', recursive: true })).rejects.toThrow('Path escapes root')
-      await expect(readFile(baseA, { path: `${ZONE}/mirror/Secret.md` })).rejects.toThrow('Path escapes root')
-      await expect(writeFile(baseA, { path: `${ZONE}/mirror/Planted.md`, content: 'x', create_dirs: false, dry_run: false })).rejects.toThrow(
+      await expect(listContent(baseA, { path: `${ZONE}/mirror`, kind: 'files', recursive: true })).rejects.toThrow(
         'Path escapes root'
       )
+      await expect(readFile(baseA, { path: `${ZONE}/mirror/Secret.md` })).rejects.toThrow('Path escapes root')
+      await expect(
+        writeFile(baseA, { path: `${ZONE}/mirror/Planted.md`, content: 'x', create_dirs: false, dry_run: false })
+      ).rejects.toThrow('Path escapes root')
     } finally {
       await fs.rm(linkDir, { force: true })
     }

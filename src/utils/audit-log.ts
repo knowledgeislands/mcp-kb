@@ -48,7 +48,9 @@ const redactUrlCredentials = (value: unknown): unknown => {
   if (typeof value === 'string') return value.replace(/(\/\/)[^/@\s]+@/g, '$1<redacted>@')
   if (Array.isArray(value)) return value.map(redactUrlCredentials)
   if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, redactUrlCredentials(v)]))
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, redactUrlCredentials(v)])
+    )
   }
   return value
 }
@@ -148,7 +150,12 @@ const extractErrorText = (result: unknown): string | undefined => {
   return first?.text
 }
 
-export const withAuditLog = (audit: AuditConfig, toolName: string, level: AccessLevel, callback: ToolCallback): ToolCallback => {
+export const withAuditLog = (
+  audit: AuditConfig,
+  toolName: string,
+  level: AccessLevel,
+  callback: ToolCallback
+): ToolCallback => {
   if (audit.mode === 'off') return callback
   if (level === 'read' && audit.mode !== 'all') return callback
   return async (...callbackArgs: unknown[]) => {
@@ -156,7 +163,8 @@ export const withAuditLog = (audit: AuditConfig, toolName: string, level: Access
     const args = callbackArgs[0]
     try {
       const result = await callback(...callbackArgs)
-      const isError = typeof result === 'object' && result !== null && (result as { isError?: boolean }).isError === true
+      const isError =
+        typeof result === 'object' && result !== null && (result as { isError?: boolean }).isError === true
       const errText = isError ? extractErrorText(result) : undefined
       void appendAuditEvent(audit, {
         ts: new Date().toISOString(),

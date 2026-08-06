@@ -20,4 +20,6 @@ import { type Config, knowledgeBaseAliases } from '../config/index.js'
 export const kbArg = (cfg: Config) =>
   z
     .enum(knowledgeBaseAliases(cfg) as [string, ...string[]])
-    .describe('Alias of the knowledge base to act in. Required — there is no default base. Call kb_config to list every declared alias.')
+    .describe(
+      'Alias of the knowledge base to act in. Required — there is no default base. Call kb_config to list every declared alias.'
+    )

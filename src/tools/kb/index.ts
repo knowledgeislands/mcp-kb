@@ -12,7 +12,8 @@ const NO_TRAVERSAL_MSG = 'Must be a KB-relative path: no ".." segments, no leadi
 const isKbRelative = (value: string): boolean =>
   !value.split(/[\\/]/).includes('..') && !value.startsWith('/') && !value.startsWith('~') && !value.includes('\0')
 
-const filePathArg = (describe: string) => z.string().min(1, 'Path must not be empty').max(4096).refine(isKbRelative, NO_TRAVERSAL_MSG).describe(describe)
+const filePathArg = (describe: string) =>
+  z.string().min(1, 'Path must not be empty').max(4096).refine(isKbRelative, NO_TRAVERSAL_MSG).describe(describe)
 
 const dirPathArg = (describe: string) => filePathArg(describe)
 
@@ -41,7 +42,8 @@ export const registerKbTools = (server: McpServer, cfg: Config): void => {
     'kb_delete',
     {
       title: 'Delete KB Content',
-      description: 'Delete a file from a declared KB zone or staging root. dry_run defaults to true; root-file allow-list entries are never deletable.',
+      description:
+        'Delete a file from a declared KB zone or staging root. dry_run defaults to true; root-file allow-list entries are never deletable.',
       inputSchema: z
         .object({
           kb: kbArg(cfg),
@@ -65,8 +67,11 @@ export const registerKbTools = (server: McpServer, cfg: Config): void => {
     'kb_folder_create',
     {
       title: 'Create KB Folder',
-      description: 'Create a folder in a declared KB zone or staging root. Idempotent: succeeds when the folder already exists.',
-      inputSchema: z.object({ kb: kbArg(cfg), path: filePathArg('KB-relative folder path in a declared zone or staging root.') }).strict(),
+      description:
+        'Create a folder in a declared KB zone or staging root. Idempotent: succeeds when the folder already exists.',
+      inputSchema: z
+        .object({ kb: kbArg(cfg), path: filePathArg('KB-relative folder path in a declared zone or staging root.') })
+        .strict(),
       outputSchema: notes.createFolderResultSchema,
       annotations: WRITE_IDEMPOTENT
     },
@@ -113,8 +118,13 @@ The exception neither lists the root nor permits writes.`,
       inputSchema: z
         .object({
           kb: kbArg(cfg),
-          path: filePathArg('KB-relative path, e.g. "Pillars/Finance/Budget.md" or an exact configured root-file path.'),
-          part: z.enum(['all', 'frontmatter', 'body']).default('all').describe('For UTF-8 Markdown only: whole file, YAML frontmatter, or body. Default all.')
+          path: filePathArg(
+            'KB-relative path, e.g. "Pillars/Finance/Budget.md" or an exact configured root-file path.'
+          ),
+          part: z
+            .enum(['all', 'frontmatter', 'body'])
+            .default('all')
+            .describe('For UTF-8 Markdown only: whole file, YAML frontmatter, or body. Default all.')
         })
         .strict(),
       outputSchema: files.readFileResultSchema,
@@ -133,7 +143,8 @@ The exception neither lists the root nor permits writes.`,
     'kb_rename',
     {
       title: 'Rename KB Content',
-      description: 'Rename or move a file within declared KB zones or staging roots. Refuses to overwrite an existing destination.',
+      description:
+        'Rename or move a file within declared KB zones or staging roots. Refuses to overwrite an existing destination.',
       inputSchema: z
         .object({
           kb: kbArg(cfg),

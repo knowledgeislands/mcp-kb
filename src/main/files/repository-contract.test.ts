@@ -12,7 +12,10 @@ import { listContent, readFile } from './index.js'
 const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
 // Declared exactly as an install would declare it: one alias, resolved through
 // the same selection helper the tool layer uses.
-const cfg = loadConfig({ [KNOWLEDGE_BASES_ENV_VAR]: JSON.stringify({ 'this-repo': REPOSITORY_ROOT }), MCP_KI_KB_FS_AUDIT_LOG: 'off' })
+const cfg = loadConfig({
+  [KNOWLEDGE_BASES_ENV_VAR]: JSON.stringify({ 'this-repo': REPOSITORY_ROOT }),
+  MCP_KI_KB_FS_AUDIT_LOG: 'off'
+})
 const base = selectKnowledgeBase(cfg, 'this-repo')
 
 describe('repository root-file contract', () => {

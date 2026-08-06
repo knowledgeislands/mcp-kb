@@ -168,7 +168,14 @@ const parseNonNegativeInt = (raw: string | undefined, fallback: number, varName:
  * resolve the zone map. Returns defaults for any zone not declared.
  */
 const isRootFileAllowlistPath = (value: string): boolean => {
-  if (!value || value.trim() !== value || value.startsWith('/') || value.startsWith('~') || value.includes('\\') || value.includes('\0')) {
+  if (
+    !value ||
+    value.trim() !== value ||
+    value.startsWith('/') ||
+    value.startsWith('~') ||
+    value.includes('\\') ||
+    value.includes('\0')
+  ) {
     return false
   }
   return value.split('/').every((segment) => segment !== '' && segment !== '.' && segment !== '..')
@@ -177,12 +184,16 @@ const isRootFileAllowlistPath = (value: string): boolean => {
 const parseRootFileAllowlist = (value: unknown): readonly string[] => {
   if (value === undefined) return [...DEFAULT_ROOT_FILE_ALLOWLIST]
   if (!Array.isArray(value) || !value.every((entry) => typeof entry === 'string' && isRootFileAllowlistPath(entry))) {
-    throw new Error('.ki-config.toml root_file_allowlist must be an array of exact, non-empty KB-relative paths without traversal or backslashes.')
+    throw new Error(
+      '.ki-config.toml root_file_allowlist must be an array of exact, non-empty KB-relative paths without traversal or backslashes.'
+    )
   }
   return [...value]
 }
 
-const loadKiConfig = (rootPath: string): { zones: ResolvedZones; rootFileAllowlist: readonly string[]; kiConfigRaw: string | null } => {
+const loadKiConfig = (
+  rootPath: string
+): { zones: ResolvedZones; rootFileAllowlist: readonly string[]; kiConfigRaw: string | null } => {
   const configPath = path.join(rootPath, '.ki-config.toml')
   let raw: string | null = null
   try {
@@ -271,7 +282,9 @@ const firstDuplicateAlias = (text: string): string | null => {
 const parseDeclaration = (raw: string | undefined): [alias: string, rawPath: string][] => {
   const text = raw?.trim()
   if (!text) {
-    throw new Error(`${KNOWLEDGE_BASES_ENV_VAR} must be set to a JSON object mapping knowledge-base alias to path, e.g. {"kit-pkb":"~/kb/kit-pkb"}.`)
+    throw new Error(
+      `${KNOWLEDGE_BASES_ENV_VAR} must be set to a JSON object mapping knowledge-base alias to path, e.g. {"kit-pkb":"~/kb/kit-pkb"}.`
+    )
   }
 
   let parsed: unknown
@@ -324,7 +337,9 @@ const resolveKnowledgeBase = (alias: string, rawPath: string): KnowledgeBase => 
   // declaration exists to pin down.
   const expanded = expandHome(trimmed)
   if (!path.isAbsolute(expanded)) {
-    throw new Error(`${KNOWLEDGE_BASES_ENV_VAR} alias "${alias}" must declare an absolute path or one starting "~/", not "${trimmed}".`)
+    throw new Error(
+      `${KNOWLEDGE_BASES_ENV_VAR} alias "${alias}" must declare an absolute path or one starting "~/", not "${trimmed}".`
+    )
   }
   const rootPath = path.resolve(expanded)
   let stat: fs.Stats
@@ -334,7 +349,9 @@ const resolveKnowledgeBase = (alias: string, rawPath: string): KnowledgeBase => 
     throw new Error(`${KNOWLEDGE_BASES_ENV_VAR} alias "${alias}" points at a path that does not exist: ${rootPath}`)
   }
   if (!stat.isDirectory()) {
-    throw new Error(`${KNOWLEDGE_BASES_ENV_VAR} alias "${alias}" points at something that is not a directory: ${rootPath}`)
+    throw new Error(
+      `${KNOWLEDGE_BASES_ENV_VAR} alias "${alias}" points at something that is not a directory: ${rootPath}`
+    )
   }
 
   const { zones, rootFileAllowlist, kiConfigRaw } = loadKiConfig(rootPath)
@@ -381,8 +398,16 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     knowledgeBases: parseKnowledgeBases(env[KNOWLEDGE_BASES_ENV_VAR]),
     accessLevel: parseAccessLevel(env.MCP_KI_KB_FS_ACCESS_LEVEL),
     auditLogMode: parseAuditLogMode(env.MCP_KI_KB_FS_AUDIT_LOG),
-    auditLogPath: path.resolve(expandHome(env.MCP_KI_KB_FS_AUDIT_LOG_PATH ?? path.join(os.homedir(), '.local', 'state', 'mcp-ki-kb-fs', 'audit.jsonl'))),
-    auditLogMaxBytes: parseNonNegativeInt(env.MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES, 10 * 1024 * 1024, 'MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES'),
+    auditLogPath: path.resolve(
+      expandHome(
+        env.MCP_KI_KB_FS_AUDIT_LOG_PATH ?? path.join(os.homedir(), '.local', 'state', 'mcp-ki-kb-fs', 'audit.jsonl')
+      )
+    ),
+    auditLogMaxBytes: parseNonNegativeInt(
+      env.MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES,
+      10 * 1024 * 1024,
+      'MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES'
+    ),
     auditLogKeep: parseNonNegativeInt(env.MCP_KI_KB_FS_AUDIT_LOG_KEEP, 5, 'MCP_KI_KB_FS_AUDIT_LOG_KEEP')
   }
 }

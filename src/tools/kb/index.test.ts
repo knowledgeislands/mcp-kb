@@ -92,7 +92,15 @@ afterAll(async () => {
 
 describe('tool surface', () => {
   it('registers exactly the seven documented tools', () => {
-    expect(allTools().map((tool) => tool.name)).toEqual(['kb_config', 'kb_delete', 'kb_folder_create', 'kb_list', 'kb_read', 'kb_rename', 'kb_write'])
+    expect(allTools().map((tool) => tool.name)).toEqual([
+      'kb_config',
+      'kb_delete',
+      'kb_folder_create',
+      'kb_list',
+      'kb_read',
+      'kb_rename',
+      'kb_write'
+    ])
   })
 
   it('registers tools in ascending alphabetical order within a group', () => {
@@ -116,7 +124,10 @@ describe('kb selector', () => {
       expect(args, `${tool.name} needs sample args`).toBeDefined()
 
       // Same args, with and without the selector: only the latter validates.
-      expect(tool.config.inputSchema?.safeParse({ ...args, kb: 'alpha' }).success, `${tool.name} should accept kb`).toBe(true)
+      expect(
+        tool.config.inputSchema?.safeParse({ ...args, kb: 'alpha' }).success,
+        `${tool.name} should accept kb`
+      ).toBe(true)
       expect(tool.config.inputSchema?.safeParse(args).success, `${tool.name} must require kb`).toBe(false)
     }
   })
@@ -143,7 +154,10 @@ describe('envelope mapping', () => {
       ['kb_config', { kb: 'alpha' }],
       ['kb_read', { kb: 'alpha', path: `${ZONE}/Note.md`, part: 'all' }],
       ['kb_list', { kb: 'alpha', path: ZONE, kind: 'files', recursive: false }],
-      ['kb_write', { kb: 'alpha', path: `${ZONE}/New.md`, content: 'x', encoding: 'utf-8', create_dirs: true, dry_run: false }],
+      [
+        'kb_write',
+        { kb: 'alpha', path: `${ZONE}/New.md`, content: 'x', encoding: 'utf-8', create_dirs: true, dry_run: false }
+      ],
       ['kb_delete', { kb: 'alpha', path: `${ZONE}/New.md`, dry_run: true }],
       ['kb_folder_create', { kb: 'alpha', path: `${ZONE}/Sub` }]
     ] as const) {
@@ -152,13 +166,21 @@ describe('envelope mapping', () => {
 
       expect(result.isError, `${name} should not error`).toBeUndefined()
       expect(result.structuredContent).toBeDefined()
-      expect(() => tool.config.outputSchema?.parse(result.structuredContent), `${name} structuredContent must match outputSchema`).not.toThrow()
+      expect(
+        () => tool.config.outputSchema?.parse(result.structuredContent),
+        `${name} structuredContent must match outputSchema`
+      ).not.toThrow()
       expect(JSON.parse(result.content[0]?.text ?? '')).toEqual(result.structuredContent)
     }
   })
 
   it('returns the renamed from/to pair on a successful rename', async () => {
-    const result = await byName('kb_rename').handler({ kb: 'alpha', from: `${ZONE}/Note.md`, to: `${ZONE}/Moved.md`, create_dirs: true })
+    const result = await byName('kb_rename').handler({
+      kb: 'alpha',
+      from: `${ZONE}/Note.md`,
+      to: `${ZONE}/Moved.md`,
+      create_dirs: true
+    })
 
     expect(result.isError).toBeUndefined()
     expect(result.structuredContent).toEqual({ from: `${ZONE}/Note.md`, to: `${ZONE}/Moved.md` })
@@ -168,8 +190,16 @@ describe('envelope mapping', () => {
     for (const [name, args, action] of [
       ['kb_read', { kb: 'alpha', path: `${ZONE}/missing.md`, part: 'all' }, 'reading file'],
       ['kb_list', { kb: 'alpha', path: 'NotAZone', kind: 'files', recursive: false }, 'listing content'],
-      ['kb_write', { kb: 'alpha', path: 'NotAZone/x.md', content: 'x', create_dirs: true, dry_run: false }, 'writing file'],
-      ['kb_rename', { kb: 'alpha', from: `${ZONE}/missing.md`, to: `${ZONE}/other.md`, create_dirs: true }, 'renaming file'],
+      [
+        'kb_write',
+        { kb: 'alpha', path: 'NotAZone/x.md', content: 'x', create_dirs: true, dry_run: false },
+        'writing file'
+      ],
+      [
+        'kb_rename',
+        { kb: 'alpha', from: `${ZONE}/missing.md`, to: `${ZONE}/other.md`, create_dirs: true },
+        'renaming file'
+      ],
       ['kb_delete', { kb: 'alpha', path: `${ZONE}/missing.md`, dry_run: false }, 'deleting file'],
       ['kb_folder_create', { kb: 'alpha', path: 'NotAZone/Sub' }, 'creating folder']
     ] as const) {

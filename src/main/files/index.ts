@@ -76,7 +76,9 @@ export const readFileResultSchema = z
     path: z.string().describe('The KB-relative path that was read, exactly as requested.'),
     part: z.enum(['all', 'frontmatter', 'body']).describe('Which slice of the file was returned.'),
     encoding: z.enum(['utf-8', 'base64']).describe('How content is encoded: utf-8 for text, base64 for binary.'),
-    mimeType: z.string().describe('MIME type derived from the file extension; application/octet-stream when unrecognised.'),
+    mimeType: z
+      .string()
+      .describe('MIME type derived from the file extension; application/octet-stream when unrecognised.'),
     content: z.string().describe('File content in the stated encoding.'),
     size: z.number().describe('Size of the whole file on disk, in bytes.')
   })
@@ -151,13 +153,18 @@ const splitFrontmatter = (content: string): FrontmatterSplit => {
   return { frontmatter: null, body: content, malformed: true }
 }
 
-export const readFile = async (base: KnowledgeBase, { path: filePath, part = 'all' }: { path: string; part?: ReadPart }): Promise<ReadFileResult> => {
+export const readFile = async (
+  base: KnowledgeBase,
+  { path: filePath, part = 'all' }: { path: string; part?: ReadPart }
+): Promise<ReadFileResult> => {
   try {
     const absPath = resolveWithinRoot(base.rootPath, filePath)
     const rel = relativeFromRoot(base.rootPath, absPath).split(path.sep).join('/')
     const isAllowlistedRootFile = filePath.replaceAll('\\', '/') === rel && base.rootFileAllowlist.includes(rel)
     if (!isInScope(rel, base.zones) && !isAllowlistedRootFile) {
-      throw new Error(`${outOfScopeError(base.zones)} Root-level and named near-root files must exactly match root_file_allowlist.`)
+      throw new Error(
+        `${outOfScopeError(base.zones)} Root-level and named near-root files must exactly match root_file_allowlist.`
+      )
     }
     if (isProtectedPath(rel) && !isAllowlistedRootFile) {
       throw new Error(`Path is protected: "${filePath}"`)
@@ -222,7 +229,14 @@ export const listContent = async (
         ? await collectFolders(base.rootPath, absDir, recursive)
         : await collectNotes(base.rootPath, absDir, recursive)
   const entries = paths.map((entry) => path.relative(base.rootPath, entry))
-  return { path: dirPath, kind, recursive, ext: kind === 'files' ? (ext ?? null) : null, count: entries.length, entries }
+  return {
+    path: dirPath,
+    kind,
+    recursive,
+    ext: kind === 'files' ? (ext ?? null) : null,
+    count: entries.length,
+    entries
+  }
 }
 
 export const listFiles = async (
@@ -355,7 +369,10 @@ export const renameFile = async (
   }
 }
 
-export const deleteFile = async (base: KnowledgeBase, { path: filePath, dry_run }: { path: string; dry_run: boolean }): Promise<DeleteFileResult> => {
+export const deleteFile = async (
+  base: KnowledgeBase,
+  { path: filePath, dry_run }: { path: string; dry_run: boolean }
+): Promise<DeleteFileResult> => {
   try {
     const absPath = resolveWithinRoot(base.rootPath, filePath)
     const rel = relativeFromRoot(base.rootPath, absPath)
@@ -371,7 +388,13 @@ export const deleteFile = async (base: KnowledgeBase, { path: filePath, dry_run 
       throw new Error(`Not a file: "${filePath}"`)
     }
     if (dry_run) {
-      return { dry_run: true, deleted: false, action: `would delete (${stat.size} bytes)`, path: filePath, bytes: stat.size }
+      return {
+        dry_run: true,
+        deleted: false,
+        action: `would delete (${stat.size} bytes)`,
+        path: filePath,
+        bytes: stat.size
+      }
     }
     await fs.unlink(absPath)
     return { dry_run: false, deleted: true, action: `deleted (${stat.size} bytes)`, path: filePath, bytes: stat.size }
