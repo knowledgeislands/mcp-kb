@@ -22,9 +22,8 @@
   // Skill bodies, references, and repo docs are all markdown content.
   "globs": ["**/*.md"],
 
-  // Never lint generated output, dependencies, or runtime projections. Generated
-  // source and runtime payloads are machine-produced (ADR-KI-HARNESS-TOOLCHAIN-005)
-  // and excluded like dist/, so their formatting is never a finding. Command files are frontmatter-first runtime definitions,
-  // while authored `.claude/` siblings such as workflows remain in scope.
-  "ignores": ["dist/**", "**/node_modules/**", "src/generated/**", ".claude/commands/**", ".claude/skills/**", ".claude/agents/**", ".agents/skills/**"]
+  // Never lint generated output, dependencies, runtime projections, or submitted
+  // trade projections. Submitted records are byte-immutable evidence; authored
+  // trade READMEs and mutable _PREPARATIONS remain in scope.
+  "ignores": ["dist/**", "**/node_modules/**", "src/generated/**", ".claude/commands/**", ".claude/skills/**", ".claude/agents/**", ".agents/skills/**", "+/_TRADES/*/*/TRD-*.md", "-/_TRADES/*/*/TRD-*.md"]
 }

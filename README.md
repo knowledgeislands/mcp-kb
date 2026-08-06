@@ -188,15 +188,15 @@ bun install
 
 ### Environment Variables
 
-| Name                               | Required | Description                                                                  |
-| ---------------------------------- | -------- | ---------------------------------------------------------------------------- |
-| `MCP_KI_KB_FS_KNOWLEDGE_BASES`     | yes      | JSON object mapping knowledge-base alias to path. ★                          |
-| `MCP_KI_KB_FS_ACCESS_LEVEL`        | no       | Maximum tool access level to register. †                                     |
-| `MCP_KI_KB_FS_AUDIT_LOG`           | no       | Audit-log scope. ‡                                                           |
-| `MCP_KI_KB_FS_AUDIT_LOG_PATH`      | no       | Path to the JSONL audit log. Default `~/.local/state/mcp-kb-fs/audit.jsonl`. |
-| `MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES` | no       | Size-based rotation threshold in bytes. ¶                                    |
-| `MCP_KI_KB_FS_AUDIT_LOG_KEEP`      | no       | Number of rotated audit-log files to retain. Default `5`.                    |
-| `NODE_ENV`                         | no       | Dev convention; controls which `.env` files `loadConfig()` picks up. §       |
+| Name | Required | Description |
+| --- | --- | --- |
+| `MCP_KI_KB_FS_KNOWLEDGE_BASES` | yes | JSON object mapping knowledge-base alias to path. ★ |
+| `MCP_KI_KB_FS_ACCESS_LEVEL` | no | Maximum tool access level to register. † |
+| `MCP_KI_KB_FS_AUDIT_LOG` | no | Audit-log scope. ‡ |
+| `MCP_KI_KB_FS_AUDIT_LOG_PATH` | no | Path to the JSONL audit log. Default `~/.local/state/mcp-kb-fs/audit.jsonl`. |
+| `MCP_KI_KB_FS_AUDIT_LOG_MAX_BYTES` | no | Size-based rotation threshold in bytes. ¶ |
+| `MCP_KI_KB_FS_AUDIT_LOG_KEEP` | no | Number of rotated audit-log files to retain. Default `5`. |
+| `NODE_ENV` | no | Dev convention; controls which `.env` files `loadConfig()` picks up. § |
 
 ★ The knowledge bases this install may reach, as a JSON object mapping each caller-facing alias to that base's absolute (or `~/...`) path:
 

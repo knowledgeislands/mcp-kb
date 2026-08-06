@@ -1,0 +1,4 @@
+# Submitted trade records are immutable sender projections.
+
++/_TRADES/*/*/TRD-*.md
+-/_TRADES/*/*/TRD-*.md
