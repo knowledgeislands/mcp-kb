@@ -1,0 +1,53 @@
+# rumdl owns Markdown wholly: formatting and linting in one tool. Biome owns
+# TypeScript, JavaScript, and JSON; the two file domains are disjoint.
+
+[global]
+exclude = [
+  "node_modules",
+  "dist",
+  "src/generated",
+  ".claude/commands",
+  ".claude/skills",
+  ".claude/agents",
+  ".agents/skills"
+]
+
+# MD033 inline HTML: <br> in table cells, angle-bracket placeholders in skills.
+# MD036 bold-as-heading: bold labels are used deliberately in skill bodies.
+# MD057 relative-link existence: real signal, but it fires on links that are
+# correct in this repository and dangle in a published copy of it, so switching
+# it on is a content decision rather than a formatting one. Tracked separately.
+# MD075 orphaned table rows: its autofix destroys data. A paragraph following a
+# table that contains "|" anywhere — inline code, or a wikilink alias such as
+# [[Note|label]] — is merged into the table as a row and split at that pipe.
+# The paragraph is lost as prose and rumdl then reports the result clean.
+# MD060 table alignment stays off (it is opt-in). No style reproduces the former
+# behaviour, where a table was padded only if the padded form fit the print
+# width and left compact otherwise; "aligned" would rewrite every wide table
+# into one very long row, and the permissive "any" enforces nothing while still
+# misfiring on a placeholder table whose only body row holds "-" cells. Table
+# width is therefore a judgment convention, not a mechanical check.
+disable = ["MD033", "MD036", "MD057", "MD075"]
+
+# MD013 owns line length and prose wrapping together, replacing the former
+# split where Prettier held printWidth and MD013 was disabled to avoid a clash.
+# normalize with an unbounded width is what yields one line per paragraph.
+[MD013]
+line-length = 100000
+reflow = true
+reflow-mode = "normalize"
+
+[MD024]
+siblings-only = true
+
+[MD025]
+front-matter-title = ""
+
+[MD004]
+style = "dash"
+
+[MD049]
+style = "underscore"
+
+[MD050]
+style = "asterisk"

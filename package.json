@@ -21,9 +21,8 @@
     "husky": "^9.1.7",
     "knip": "^6.32.0",
     "lint-staged": "^17.3.0",
-    "markdownlint-cli2": "^0.23.2",
     "mcporter": "^0.13.0",
-    "prettier": "^3.9.6",
+    "rumdl": "^0.2.52",
     "syncpack": "^15.3.2",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
@@ -64,8 +63,7 @@
       "bunx @biomejs/biome check --write --no-errors-on-unmatched"
     ],
     "*.md": [
-      "bunx prettier --write",
-      "bunx markdownlint-cli2 --no-globs"
+      "bunx rumdl check --fix"
     ]
   },
   "main": "dist/mcp-server/index.js",
