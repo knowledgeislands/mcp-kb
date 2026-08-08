@@ -1,4 +1,7 @@
-["knowledgeislands/ki-agentic-harness:ki-repo"]
+[repo]
+harnesses = ["knowledgeislands/ki-agentic-harness"]
+
+[skills.ki-repo]
 repository = "https://github.com/knowledgeislands/mcp-ki-kb-fs"
 title = "mcp-kb-fs"
 description = "MCP for Knowledge Islands knowledge bases on a local filesystem"
@@ -6,25 +9,25 @@ repo_code = "MCP-KBFS"
 supported_runtimes = ["claude-code", "chatgpt-codex"]
 visibility = "public"
 
-["knowledgeislands/ki-agentic-harness:ki-authoring"]
+[skills.ki-authoring]
 
-["knowledgeislands/ki-agentic-harness:ki-engineering"]
+[skills.ki-engineering]
 
-["knowledgeislands/ki-agentic-harness:ki-mcp"]
+[skills.ki-mcp]
 
-["knowledgeislands/ki-agentic-harness:ki-roadmap"]
-["knowledgeislands/ki-agentic-harness:ki-roadmap".themes]
+[skills.ki-roadmap]
+[skills.ki-roadmap.themes]
 FND = "foundation-tooling"
 TOOL = "tool-surface"
 
-["knowledgeislands/ki-agentic-harness:ki-tokenomics"]
+[skills.ki-tokenomics]
 
-["knowledgeislands/ki-agentic-harness:ki-housekeeping-claude"]
+[skills.ki-housekeeping-claude]
 
-["knowledgeislands/ki-agentic-harness:ki-tokenomics-claude"]
+[skills.ki-tokenomics-claude]
 
-["knowledgeislands/ki-agentic-harness:ki-tokenomics-codex"]
+[skills.ki-tokenomics-codex]
 
-["knowledgeislands/ki-agentic-harness:ki-git"]
+[skills.ki-git]
 
-["knowledgeislands/ki-agentic-harness:ki-decision-records"]
+[skills.ki-decision-records]
