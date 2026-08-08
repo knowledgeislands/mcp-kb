@@ -27,11 +27,16 @@ exclude = [
 # into one very long row, and the permissive "any" enforces nothing while still
 # misfiring on a placeholder table whose only body row holds "-" cells. Table
 # width is therefore a judgment convention, not a mechanical check.
+# MD056 table column count: its autofix destroys data. A wikilink alias in a
+# table cell — [[Target|Label]] — is counted as a cell separator, so the row
+# reads as having too many cells and the fix resolves it by truncating the row,
+# deleting the alias text and every cell after it. Same pipe-confusion root
+# cause as MD075.
 # MD005 list indentation: its autofix breaks structure. An ordered list
 # inside a blockquote inside a list item is read as top-level, so its ">"
 # markers are de-indented to column 0 while the blockquote lines around
 # them keep their indent, leaving the quote split across two nestings.
-disable = ["MD005", "MD033", "MD036", "MD057", "MD075"]
+disable = ["MD005", "MD033", "MD036", "MD056", "MD057", "MD075"]
 
 # MD013 owns line length and prose wrapping together, replacing the former
 # split where Prettier held printWidth and MD013 was disabled to avoid a clash.
