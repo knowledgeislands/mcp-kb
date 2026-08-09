@@ -38,3 +38,13 @@ TOOL = "tool-surface"
 [skills.ki-git]
 
 [skills.ki-decision-records]
+
+[skills.ki-agora]
+
+[skills.ki-agora.memberships.ki-all]
+home = "https://github.com/knowledgeislands/ki-agentic-harness"
+role = "maintainer"
+
+[skills.ki-agora.memberships.ki-mcps]
+home = "https://github.com/knowledgeislands/ki-agentic-harness"
+role = "maintainer"
