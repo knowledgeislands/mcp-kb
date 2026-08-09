@@ -6,7 +6,7 @@ repository = "https://github.com/knowledgeislands/mcp-ki-kb-fs"
 title = "mcp-kb-fs"
 description = "MCP for Knowledge Islands knowledge bases on a local filesystem"
 repo_code = "MCP-KBFS"
-supported_runtimes = ["claude-code", "chatgpt-codex"]
+supported_runtimes = ["claude-code", "claude-desktop", "chatgpt-codex"]
 visibility = "public"
 
 [skills.ki-authoring]
