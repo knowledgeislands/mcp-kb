@@ -23,6 +23,10 @@ adapter = "roadmap"
 [skills.ki-change-management-roadmap]
 themes = ["foundation-tooling", "tool-surface"]
 
+[skills.ki-change-management-roadmap.areas]
+FND = "foundation-tooling"
+TOOL = "tool-surface"
+
 [skills.ki-tokenomics]
 
 [skills.ki-housekeeping-claude]

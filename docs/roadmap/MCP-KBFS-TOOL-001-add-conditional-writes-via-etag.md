@@ -1,5 +1,6 @@
 ---
-id: MCP-KBFS-001
+id: MCP-KBFS-TOOL-001
+area: TOOL
 title: Add ETag writes
 theme: tool-surface
 horizon: next
