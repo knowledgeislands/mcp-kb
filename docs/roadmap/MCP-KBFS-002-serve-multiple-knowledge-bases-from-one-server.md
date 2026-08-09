@@ -1,5 +1,5 @@
 ---
-id: MCP-KBFS-TOOL-002
+id: MCP-KBFS-002
 title: Serve multiple knowledge bases
 theme: tool-surface
 horizon: now
@@ -79,7 +79,7 @@ The layer boundary and result contracts were corrected recently and constrain ho
 
 Nothing blocks this item and it blocks nothing; both frontmatter arrays are empty and that reflects the code.
 
-It overlaps [MCP-KBFS-TOOL-001](MCP-KBFS-TOOL-001-add-conditional-writes-via-etag.md) in one place worth noting. Both change declared result schemas, and `readFileResultSchema` is `.strict()`, so whichever lands second rebases the other's schema change. That is a merge-order consideration rather than a dependency: neither needs the other to exist.
+It overlaps [MCP-KBFS-001](MCP-KBFS-001-add-conditional-writes-via-etag.md) in one place worth noting. Both change declared result schemas, and `readFileResultSchema` is `.strict()`, so whichever lands second rebases the other's schema change. That is a merge-order consideration rather than a dependency: neither needs the other to exist.
 
 ## Delegation
 
