@@ -133,6 +133,10 @@ Claude Desktop retains thirteen stale `mcp-ki-kb-fs` entries and cannot be corre
 
 Three additive deviations from the plan, all narrowing rather than widening behaviour: relative root paths are rejected, because a relative root resolves against the host's launch directory and would make the authorisation boundary depend on ambient state; `kb_config` returns the roster alongside the selected base, since the plan's reporting requirement had to coexist with `kb` being required on all seven tools; and `src/tools/shared.ts` is a non-`index.ts` file under `src/tools/`, so it is coverage-included and is fully covered.
 
+### Post-change review
+
+The delivery remains within the approved multi-base boundary. The observed Claude Desktop stale-entry limitation is retained as an explicit owner-accepted concern rather than being treated as a silent cleanup or a new server behaviour.
+
 ### Mini recap
 
 The plan's judgement that this was smaller than it looked held up: the containment helpers were already root-parameterised, so the work was config shape and threading rather than a security rewrite. The decision to make `kb` required rather than defaulted is what made the result verifiable — a default base would have left a silent-wrong-base failure mode that no test could reasonably assert against.
