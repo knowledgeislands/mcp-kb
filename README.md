@@ -256,7 +256,7 @@ bun run test                # vitest (use `bun run test`, not `bun test`)
 bun run ki:lint:types          # tsc --noEmit
 bun run ki:lint:check          # Biome lint + format check
 bun run ki:lint:fix            # Biome auto-fix (uses --unsafe)
-bun run ki:lint:md             # prettier + markdownlint for *.md
+ki repo audit --skill ki-authoring --repo .  # rumdl check for authored Markdown
 ```
 
 ## Security Model
