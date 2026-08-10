@@ -6,8 +6,8 @@ theme: tool-surface
 horizon: next
 status: draft
 blocks: []
-blocked-by: []
-baseline-ref: null
+blocked_by: []
+baseline_ref: null
 ---
 
 ## Goal
@@ -61,7 +61,7 @@ Two read-shape facts constrain the design. `kb_read` can return a slice (`part: 
 
 ## Dependencies / blocks
 
-This item is neither blocked by nor blocking another work item; `blocks` and `blocked-by` are empty. Its real dependency is internal: the output-schema contract established by the layer refactor, which makes any new result field a deliberate change to a declared `outputSchema` rather than an additive one.
+This item is neither blocked by nor blocking another work item; `blocks` and `blocked_by` are empty. Its real dependency is internal: the output-schema contract established by the layer refactor, which makes any new result field a deliberate change to a declared `outputSchema` rather than an additive one.
 
 ## Discussion
 

@@ -6,8 +6,8 @@ theme: tool-surface
 horizon: now
 status: awaiting-review
 blocks: []
-blocked-by: []
-baseline-ref: 61b1aba5d288ccc908962c1a8cf7ff4fa37235f3
+blocked_by: []
+baseline_ref: 61b1aba5d288ccc908962c1a8cf7ff4fa37235f3
 ---
 
 ## Goal
