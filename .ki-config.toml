@@ -17,6 +17,11 @@ visibility = "public"
 
 [skills.ki-repo-mcp]
 
+[skills.ki-trades]
+
+[skills.ki-trades.routes."knowledgeislands/ki-agentic-harness"]
+import = ["knowledge"]
+
 [skills.ki-change-management]
 adapter = "roadmap"
 
