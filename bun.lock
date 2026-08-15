@@ -16,7 +16,7 @@
         "husky": "^9.1.7",
         "knip": "^6.32.0",
         "lint-staged": "^17.3.0",
-        "mcporter": "^0.13.2",
+        "mcporter": "^0.13.4",
         "rumdl": "^0.2.52",
         "syncpack": "^15.3.3",
         "typescript": "^7.0.2",
@@ -527,7 +527,7 @@
 
     "math-intrinsics": ["math-intrinsics@1.1.0", "", {}, "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g=="],
 
-    "mcporter": ["mcporter@0.13.2", "", { "dependencies": { "@iarna/toml": "^2.2.5", "@modelcontextprotocol/client": "^2.0.0", "@modelcontextprotocol/server": "^2.0.0", "acorn": "^8.18.0", "commander": "^15.0.0", "es-toolkit": "^1.50.0", "jsonc-parser": "^3.3.1", "ora": "^9.4.1", "rolldown": "1.2.3", "zod": "^4.4.3" }, "bin": { "mcporter": "dist/cli.js" } }, "sha512-fojohhbVIV09+mLWdb1eztQU/lkFuhbGJD1Ii/R3+imHjUbExJx8rg6MaHfBtFgplTX1ury79aH0a2v84Op4qw=="],
+    "mcporter": ["mcporter@0.13.4", "", { "dependencies": { "@iarna/toml": "^2.2.5", "@modelcontextprotocol/client": "^2.0.0", "@modelcontextprotocol/server": "^2.0.0", "acorn": "^8.18.0", "commander": "^15.0.0", "es-toolkit": "^1.50.0", "jsonc-parser": "^3.3.1", "ora": "^9.4.1", "rolldown": "1.2.3", "zod": "^4.4.3" }, "bin": { "mcporter": "dist/cli.js" } }, "sha512-pL+mDXVKnBvM5tXOEp/kbIUJn1UN2zbevFXy1NFvtLBOO+24Eqmw+0urWHzZfIFcUCN2YGLsrfh/tRxTuVxXgQ=="],
 
     "media-typer": ["media-typer@1.1.0", "", {}, "sha512-aisnrDP4GNe06UcKFnV5bfMNPBUw4jsLGaWwWfnH3v02GnBuXX2MCVn5RbrWo0j3pczUilYblq7fQ7Nw2t5XKw=="],
 
