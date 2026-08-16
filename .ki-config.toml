@@ -22,13 +22,13 @@ visibility = "public"
 [skills.ki-trades.routes."knowledgeislands/ki-agentic-harness"]
 import = ["knowledge"]
 
-[skills.ki-change-management]
+[skills.ki-work]
 adapter = "roadmap"
 
-[skills.ki-change-management-roadmap]
+[skills.ki-work-roadmap]
 themes = ["foundation-tooling", "tool-surface"]
 
-[skills.ki-change-management-roadmap.areas]
+[skills.ki-work-roadmap.areas]
 FND = "foundation-tooling"
 TOOL = "tool-surface"
 
