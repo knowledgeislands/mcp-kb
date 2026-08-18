@@ -63,6 +63,24 @@ Two read-shape facts constrain the design. `kb_read` can return a slice (`part: 
 
 This item is neither blocked by nor blocking another work item; `blocks` and `blocked_by` are empty. Its real dependency is internal: the output-schema contract established by the layer refactor, which makes any new result field a deliberate change to a declared `outputSchema` rather than an additive one.
 
+## Documentation impact
+
+### Decision Records
+
+None.
+
+### Specifications
+
+None.
+
+### Guides
+
+Document conditional-write and ETag behaviour in the README.
+
+### Roadmap
+
+No additional roadmap impact.
+
 ## Discussion
 
 ### Etag derivation

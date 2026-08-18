@@ -82,6 +82,24 @@ Nothing blocks this item and it blocks nothing; both frontmatter arrays are empt
 
 It overlaps [MCP-KBFS-TOOL-001](MCP-KBFS-TOOL-001-add-conditional-writes-via-etag.md) in one place worth noting. Both change declared result schemas, and `readFileResultSchema` is `.strict()`, so whichever lands second rebases the other's schema change. That is a merge-order consideration rather than a dependency: neither needs the other to exist.
 
+## Documentation impact
+
+### Decision Records
+
+None.
+
+### Specifications
+
+None.
+
+### Guides
+
+Document multi-base configuration and selection behaviour in the README.
+
+### Roadmap
+
+No additional roadmap impact.
+
 ## Delegation
 
 This is one sequential unit and should not be fanned out. The steps form a dependency chain rather than independent work: the `Config` shape must settle before the tool layer can select an alias, and the `main/` signatures cannot change until the tool layer passes a resolved base. Two agents working the config and tool layers concurrently would contend on the same call path and on the same result schemas.
