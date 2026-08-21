@@ -1,3 +1,6 @@
+# Knowledge Islands repository configuration.
+# Its presence declares conformance with the Knowledge Islands repository standard.
+
 [repo]
 harnesses = ["knowledgeislands/ki-agentic-harness"]
 
