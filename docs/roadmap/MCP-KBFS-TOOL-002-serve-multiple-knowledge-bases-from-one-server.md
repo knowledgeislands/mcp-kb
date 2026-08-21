@@ -4,7 +4,7 @@ area: TOOL
 title: Serve multiple knowledge bases
 theme: tool-surface
 horizon: now
-status: awaiting-review
+status: done
 blocks: []
 blocked_by: []
 baseline_ref: 61b1aba5d288ccc908962c1a8cf7ff4fa37235f3
@@ -160,6 +160,10 @@ The delivery remains within the approved multi-base boundary. The observed Claud
 The plan's judgement that this was smaller than it looked held up: the containment helpers were already root-parameterised, so the work was config shape and threading rather than a security rewrite. The decision to make `kb` required rather than defaulted is what made the result verifiable — a default base would have left a silent-wrong-base failure mode that no test could reasonably assert against.
 
 Proposed learning route, not applied: the additive-merge property of the Claude Desktop config transform means removing any server from the canonical declaration is silently ineffective for that client. That is a durable fact about the dotfiles repository rather than about this server, so it belongs to a dotfiles work item if the owner wants it fixed generally.
+
+## Done
+
+Accepted on 2026-08-21 after the multi-base configuration, containment, wire-schema, live-base, coverage, smoke, and repository-audit evidence recorded above was approved. The separately owned Claude Desktop stale-entry cleanup remains outside this completed item.
 
 ## Discussion
 
