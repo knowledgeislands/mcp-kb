@@ -7,7 +7,7 @@
  * Knowledge Islands knowledge bases on the local filesystem. Each call names the
  * base it acts in by alias; every path is then constrained to that base's
  * declared KI zones (Calendar, Pillars, Resources, Streams, Admin) and staging
- * areas (+ inbound, - outbound), as resolved from its .ki-config.toml at startup.
+ * areas (+ inbound, - outbound), as resolved from its .ki.toml at startup.
  *
  * Configuration (environment variables):
  *   MCP_KI_KB_FS_KNOWLEDGE_BASES   JSON object of alias → knowledge-base path.

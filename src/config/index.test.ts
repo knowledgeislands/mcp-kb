@@ -155,9 +155,9 @@ describe('loadConfig', () => {
       }
     })
 
-    it('resolves each base\u2019s own .ki-config.toml once, at startup', () => {
+    it('resolves each base\u2019s own .ki.toml once, at startup', () => {
       fs.writeFileSync(
-        path.join(SECOND_ROOT, '.ki-config.toml'),
+        path.join(SECOND_ROOT, '.ki.toml'),
         '[knowledgeislands-kb]\n[knowledgeislands-kb.zones]\nPillars = "Areas"\n',
         'utf-8'
       )
@@ -167,7 +167,7 @@ describe('loadConfig', () => {
         expect(selectKnowledgeBase(cfg, 'first').zones.Pillars).toBe('Pillars')
         expect(selectKnowledgeBase(cfg, 'second').zones.Pillars).toBe('Areas')
       } finally {
-        fs.rmSync(path.join(SECOND_ROOT, '.ki-config.toml'))
+        fs.rmSync(path.join(SECOND_ROOT, '.ki.toml'))
       }
     })
   })
@@ -283,36 +283,36 @@ describe('loadConfig', () => {
     })
   })
 
-  describe('loadKiConfig — .ki-config.toml handling', () => {
-    it('uses zone overrides from a valid .ki-config.toml', () => {
+  describe('loadKiConfig — .ki.toml handling', () => {
+    it('uses zone overrides from a valid .ki.toml', () => {
       const toml = '[knowledgeislands-kb]\n[knowledgeislands-kb.zones]\nCalendar = "Cal"\n'
-      fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
+      fs.writeFileSync(path.join(TOML_ROOT, '.ki.toml'), toml, 'utf-8')
       const cfg = primary(load())
       expect(cfg.zones.Calendar).toBe('Cal')
       expect(cfg.zones.Pillars).toBe('Pillars') // default
       expect(cfg.kiConfigRaw).toBe(toml)
-      fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
+      fs.rmSync(path.join(TOML_ROOT, '.ki.toml'))
     })
 
-    it('uses the default root-file allow-list when .ki-config.toml has none', () => {
+    it('uses the default root-file allow-list when .ki.toml has none', () => {
       const cfg = primary(load())
       expect(cfg.rootFileAllowlist).toEqual(['README.md', 'AGENTS.md', 'CLAUDE.md'])
     })
 
-    it('uses exact root-file allow-list paths from .ki-config.toml', () => {
+    it('uses exact root-file allow-list paths from .ki.toml', () => {
       const toml =
         '[knowledgeislands-kb]\nroot_file_allowlist = ["README.md", "GEMINI.md", ".github/copilot-instructions.md"]\n'
-      fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
+      fs.writeFileSync(path.join(TOML_ROOT, '.ki.toml'), toml, 'utf-8')
       const cfg = primary(load())
       expect(cfg.rootFileAllowlist).toEqual(['README.md', 'GEMINI.md', '.github/copilot-instructions.md'])
-      fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
+      fs.rmSync(path.join(TOML_ROOT, '.ki.toml'))
     })
 
     it('rejects non-relative or traversal paths in root_file_allowlist', () => {
       const toml = '[knowledgeislands-kb]\nroot_file_allowlist = ["../.env"]\n'
-      fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
+      fs.writeFileSync(path.join(TOML_ROOT, '.ki.toml'), toml, 'utf-8')
       expect(() => load()).toThrow(/root_file_allowlist must be an array/)
-      fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
+      fs.rmSync(path.join(TOML_ROOT, '.ki.toml'))
     })
 
     it('rejects every malformed shape of a root_file_allowlist entry', () => {
@@ -330,28 +330,28 @@ describe('loadConfig', () => {
       ]
       for (const entry of bad) {
         const toml = `[knowledgeislands-kb]\nroot_file_allowlist = [${entry}]\n`
-        fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
+        fs.writeFileSync(path.join(TOML_ROOT, '.ki.toml'), toml, 'utf-8')
         expect(() => load(), `entry ${entry}`).toThrow(/root_file_allowlist must be an array/)
       }
-      fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
+      fs.rmSync(path.join(TOML_ROOT, '.ki.toml'))
     })
 
     it('rejects a root_file_allowlist that is not an array of strings', () => {
       for (const value of ['"README.md"', '[42]']) {
         const toml = `[knowledgeislands-kb]\nroot_file_allowlist = ${value}\n`
-        fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
+        fs.writeFileSync(path.join(TOML_ROOT, '.ki.toml'), toml, 'utf-8')
         expect(() => load(), `value ${value}`).toThrow(/root_file_allowlist must be an array/)
       }
-      fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
+      fs.rmSync(path.join(TOML_ROOT, '.ki.toml'))
     })
 
-    it('throws on a malformed .ki-config.toml (TOML parse error branch, lines 155-161)', () => {
-      fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), '[[invalid\n', 'utf-8')
-      expect(() => load()).toThrow(/.ki-config.toml parse error/)
-      fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
+    it('throws on a malformed .ki.toml (TOML parse error branch, lines 155-161)', () => {
+      fs.writeFileSync(path.join(TOML_ROOT, '.ki.toml'), '[[invalid\n', 'utf-8')
+      expect(() => load()).toThrow(/.ki.toml parse error/)
+      fs.rmSync(path.join(TOML_ROOT, '.ki.toml'))
     })
 
-    it('falls back to defaults when .ki-config.toml is absent', () => {
+    it('falls back to defaults when .ki.toml is absent', () => {
       const cfg = primary(load())
       expect(cfg.zones.Calendar).toBe('Calendar')
       expect(cfg.kiConfigRaw).toBeNull()
@@ -360,38 +360,38 @@ describe('loadConfig', () => {
     it('uses default zone name when override is an empty string (str() fallback branch)', () => {
       // An empty-string zone value should fall through to the default (str() returns fallback).
       const toml = '[knowledgeislands-kb]\n[knowledgeislands-kb.zones]\nCalendar = ""\n'
-      fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
+      fs.writeFileSync(path.join(TOML_ROOT, '.ki.toml'), toml, 'utf-8')
       const cfg = primary(load())
       expect(cfg.zones.Calendar).toBe('Calendar') // empty string → fallback
-      fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
+      fs.rmSync(path.join(TOML_ROOT, '.ki.toml'))
     })
 
     it('uses default zone name when override is a non-string (str() typeof branch)', () => {
       // A TOML integer value for a zone key should fall through to the default.
       const toml = '[knowledgeislands-kb]\n[knowledgeislands-kb.zones]\nCalendar = 42\n'
-      fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
+      fs.writeFileSync(path.join(TOML_ROOT, '.ki.toml'), toml, 'utf-8')
       const cfg = primary(load())
       expect(cfg.zones.Calendar).toBe('Calendar') // non-string → fallback
-      fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
+      fs.rmSync(path.join(TOML_ROOT, '.ki.toml'))
     })
 
-    it('uses all defaults when .ki-config.toml has no [knowledgeislands-kb] section (line 163 ?? branch)', () => {
+    it('uses all defaults when .ki.toml has no [knowledgeislands-kb] section (line 163 ?? branch)', () => {
       // No [knowledgeislands-kb] table → parsed['knowledgeislands-kb'] is undefined → ?? {} fires.
       const toml = '[other-section]\nfoo = "bar"\n'
-      fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
+      fs.writeFileSync(path.join(TOML_ROOT, '.ki.toml'), toml, 'utf-8')
       const cfg = primary(load())
       expect(cfg.zones.Calendar).toBe('Calendar')
       expect(cfg.zones.Pillars).toBe('Pillars')
-      fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
+      fs.rmSync(path.join(TOML_ROOT, '.ki.toml'))
     })
 
     it('uses all defaults when [knowledgeislands-kb] has no zones key (line 164 ?? branch)', () => {
       // [knowledgeislands-kb] section exists but has no zones sub-table → kb.zones is undefined → ?? {} fires.
       const toml = '[knowledgeislands-kb]\nsome_key = "value"\n'
-      fs.writeFileSync(path.join(TOML_ROOT, '.ki-config.toml'), toml, 'utf-8')
+      fs.writeFileSync(path.join(TOML_ROOT, '.ki.toml'), toml, 'utf-8')
       const cfg = primary(load())
       expect(cfg.zones.Calendar).toBe('Calendar')
-      fs.rmSync(path.join(TOML_ROOT, '.ki-config.toml'))
+      fs.rmSync(path.join(TOML_ROOT, '.ki.toml'))
     })
   })
 })

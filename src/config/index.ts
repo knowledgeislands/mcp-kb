@@ -72,7 +72,7 @@ export type AuditLogMode = 'off' | 'writes' | 'all'
 /**
  * The resolved zone map for a Knowledge Islands KB. Each canonical zone name
  * maps to its local folder name in this KB (may differ from the canonical name
- * if overridden in .ki-config.toml). Staging areas + and - are always present.
+ * if overridden in .ki.toml). Staging areas + and - are always present.
  */
 export interface ResolvedZones {
   Calendar: string
@@ -110,11 +110,11 @@ export interface KnowledgeBase {
   alias: string
   /** Absolute KB root. All paths resolve under it and are confined to it. */
   rootPath: string
-  /** Resolved zone → folder-name map, derived from .ki-config.toml or defaults. */
+  /** Resolved zone → folder-name map, derived from .ki.toml or defaults. */
   zones: ResolvedZones
   /** Exact KB-relative paths readable through kb_read. */
   rootFileAllowlist: readonly string[]
-  /** Raw .ki-config.toml text if present, null if absent. */
+  /** Raw .ki.toml text if present, null if absent. */
   kiConfigRaw: string | null
 }
 
@@ -164,7 +164,7 @@ const parseNonNegativeInt = (raw: string | undefined, fallback: number, varName:
 }
 
 /**
- * Read .ki-config.toml from the KB root (synchronously, during startup) and
+ * Read .ki.toml from the KB root (synchronously, during startup) and
  * resolve the zone map. Returns defaults for any zone not declared.
  */
 const isRootFileAllowlistPath = (value: string): boolean => {
@@ -185,7 +185,7 @@ const parseRootFileAllowlist = (value: unknown): readonly string[] => {
   if (value === undefined) return [...DEFAULT_ROOT_FILE_ALLOWLIST]
   if (!Array.isArray(value) || !value.every((entry) => typeof entry === 'string' && isRootFileAllowlistPath(entry))) {
     throw new Error(
-      '.ki-config.toml root_file_allowlist must be an array of exact, non-empty KB-relative paths without traversal or backslashes.'
+      '.ki.toml root_file_allowlist must be an array of exact, non-empty KB-relative paths without traversal or backslashes.'
     )
   }
   return [...value]
@@ -194,7 +194,7 @@ const parseRootFileAllowlist = (value: unknown): readonly string[] => {
 const loadKiConfig = (
   rootPath: string
 ): { zones: ResolvedZones; rootFileAllowlist: readonly string[]; kiConfigRaw: string | null } => {
-  const configPath = path.join(rootPath, '.ki-config.toml')
+  const configPath = path.join(rootPath, '.ki.toml')
   let raw: string | null = null
   try {
     raw = fs.readFileSync(configPath, 'utf-8')
@@ -209,7 +209,7 @@ const loadKiConfig = (
   } catch (err) {
     // smol-toml always throws an Error instance; String(err) is a defensive fallback.
     /* v8 ignore next */
-    throw new Error(`.ki-config.toml parse error: ${err instanceof Error ? err.message : String(err)}`)
+    throw new Error(`.ki.toml parse error: ${err instanceof Error ? err.message : String(err)}`)
   }
 
   const kb = (parsed['knowledgeislands-kb'] ?? {}) as Record<string, unknown>
@@ -318,7 +318,7 @@ const parseDeclaration = (raw: string | undefined): [alias: string, rawPath: str
 /**
  * Resolve one declared entry into a `KnowledgeBase`, failing startup unless the
  * alias is a safe identifier and the path is an existing directory. Its
- * `.ki-config.toml` is read once, here, so no tool call re-reads it.
+ * `.ki.toml` is read once, here, so no tool call re-reads it.
  */
 const resolveKnowledgeBase = (alias: string, rawPath: string): KnowledgeBase => {
   if (!ALIAS_PATTERN.test(alias)) {

@@ -61,7 +61,7 @@ Returns JSON with the file path, MIME type, encoding, byte size, and content. UT
 
 `kb_read` accepts ordinary files below a declared zone or staging root, plus exact configured context paths. The default root-file allow-list is `README.md`, `AGENTS.md`, and `CLAUDE.md`.
 
-Configure a different exact list in the KB root’s `.ki-config.toml`:
+Configure a different exact list in the KB root’s `.ki.toml`:
 
 ```toml
 [knowledgeislands-kb]
@@ -269,7 +269,7 @@ ki repo audit --skill ki-authoring --repo .  # rumdl check for authored Markdown
 - **Protected paths** are filtered out of list tools and rejected by read/write tools with `Path is protected: "<path>"`. Two rules:
   - any path segment beginning with `.` is protected at any depth (covers `.git`, `.obsidian`, `.env`, etc.);
   - root-level basenames `README`, `CLAUDE`, `LICENSE`, `CHANGELOG`, `CONTRIBUTING`, `SECURITY`, `CODE_OF_CONDUCT`, `AGENTS` (case-insensitive, with optional `.md`/`.txt`) are protected so the KB folder's own repo-meta isn't exposed. Nested files with the same names (e.g. `archive/README.md`) remain accessible.
-- **Root-file exception** — `kb_read` is read-only and permits no discovery outside declared zones. After the normal lexical and physical root checks, it reads only an exact `root_file_allowlist` entry from `.ki-config.toml`; defaults are `README.md`, `AGENTS.md`, and `CLAUDE.md`. This narrowly permits repository context and named agent instructions without exposing other root files or dot-directories.
+- **Root-file exception** — `kb_read` is read-only and permits no discovery outside declared zones. After the normal lexical and physical root checks, it reads only an exact `root_file_allowlist` entry from `.ki.toml`; defaults are `README.md`, `AGENTS.md`, and `CLAUDE.md`. This narrowly permits repository context and named agent instructions without exposing other root files or dot-directories.
 - **No paths on the wire** — `kb_config` reports aliases, zone names and staging names, never a filesystem path, so the caller's contract stays the alias and a base can be re-homed on disk without any caller changing.
 - **Content discipline** — `kb_read` returns base64 for non-UTF-8 content and accepts Markdown `part` selection only for UTF-8 `.md` files. `kb_list` distinguishes files, folders, and Markdown notes while retaining the same zone and protected-path rules.
 - The server has no network access and performs no authentication. Trust is delegated entirely to the local OS user running it.

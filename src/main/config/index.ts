@@ -1,6 +1,6 @@
 /**
  * KB config orientation handler — returns the resolved zone map and raw
- * `.ki-config.toml` content for the selected knowledge base, plus the roster of
+ * `.ki.toml` content for the selected knowledge base, plus the roster of
  * every base this install declares, so an agent can discover what the server
  * may reach without being told the environment.
  *
@@ -44,14 +44,14 @@ const stagingSchema = () =>
  */
 export const kbConfigResultSchema = z
   .object({
-    kb: z.string().describe('Alias of the knowledge base this zone map, allow-list and .ki-config.toml belong to.'),
+    kb: z.string().describe('Alias of the knowledge base this zone map, allow-list and .ki.toml belong to.'),
     zones: zonesSchema(),
     staging: stagingSchema(),
     rootFileAllowlist: z
       .array(z.string())
       .describe('Exact root-relative paths readable through kb_read; never writable.'),
-    kiConfigPresent: z.boolean().describe('True when a .ki-config.toml was found at this KB root on server startup.'),
-    kiConfigRaw: z.string().describe('Raw .ki-config.toml text, or a placeholder when the file is absent.'),
+    kiConfigPresent: z.boolean().describe('True when a .ki.toml was found at this KB root on server startup.'),
+    kiConfigRaw: z.string().describe('Raw .ki.toml text, or a placeholder when the file is absent.'),
     knowledgeBases: z
       .array(
         z

@@ -73,11 +73,11 @@ export interface McpKiKbMcpKiKbFsTools {
 
   /**
    * Return the Knowledge Islands configuration for this KB: resolved zone names,
-   * staging area names, the root-file read allow-list, and the raw .ki-config.toml content.
+   * staging area names, the root-file read allow-list, and the raw .ki.toml content.
    * Use this as an orientation step when working with an unfamiliar KB — it tells
    * you which top-level folders correspond to each canonical zone (Calendar, Pillars,
    * Resources, Streams, Admin) and which staging areas (+/ and -/) are configured.
-   * The zone map is derived from .ki-config.toml at server startup; if the file is
+   * The zone map is derived from .ki.toml at server startup; if the file is
    * absent, all zones use their canonical defaults.
    * Takes no parameters. Returns a JSON object with:
    * - zones: { Calendar, Pillars, Resources, Streams, Admin }
