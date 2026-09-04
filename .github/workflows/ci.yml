@@ -17,6 +17,8 @@ jobs:
           KI_ROOT: ${{ runner.temp }}/ki-fnd-001
         run: |
           set -euo pipefail
+          mkdir -p "$HOME/.agents" "$HOME/.claude"
+          printf '{}\n' > "$HOME/.claude/settings.json"
           export KI_CLI_INSTALL_DIR="$KI_ROOT/bin"
           export KI_MAN_INSTALL_DIR="$KI_ROOT/share/man/man1"
           export XDG_DATA_HOME="$KI_ROOT/data"
@@ -35,6 +37,11 @@ jobs:
           grep -F "Installation: regular" "$KI_ROOT/ki-diag-before-bootstrap.txt"
           grep -F "Executable: $KI_CLI_INSTALL_DIR/ki" "$KI_ROOT/ki-diag-before-bootstrap.txt"
           ki bootstrap
+          ki registry add --repo .
+          ki repo repair --repo .
+          project_key=${GITHUB_WORKSPACE//\//-}
+          mkdir -p "$HOME/.claude/projects/$project_key/memory"
+          touch "$HOME/.claude/projects/$project_key/memory/MEMORY.md"
           ki manage diag | tee "$KI_ROOT/ki-diag.txt"
           grep -F "Status: valid" "$KI_ROOT/ki-diag.txt"
           ki harness list | grep -E '^knowledgeislands/ki-agentic-harness[[:space:]]'
