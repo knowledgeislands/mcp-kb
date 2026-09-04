@@ -31,12 +31,12 @@ jobs:
           export PATH="$KI_CLI_INSTALL_DIR:$PATH"
           test "$(command -v ki)" = "$KI_CLI_INSTALL_DIR/ki"
           test "$(ki --version)" = "0.3.5"
-          ki diag | tee "$KI_ROOT/ki-diag-before-bootstrap.txt"
-          grep -F "Installation  regular" "$KI_ROOT/ki-diag-before-bootstrap.txt"
-          grep -F "Executable    $KI_CLI_INSTALL_DIR/ki" "$KI_ROOT/ki-diag-before-bootstrap.txt"
+          ki manage diag | tee "$KI_ROOT/ki-diag-before-bootstrap.txt"
+          grep -F "Installation: regular" "$KI_ROOT/ki-diag-before-bootstrap.txt"
+          grep -F "Executable: $KI_CLI_INSTALL_DIR/ki" "$KI_ROOT/ki-diag-before-bootstrap.txt"
           ki bootstrap
-          ki diag | tee "$KI_ROOT/ki-diag.txt"
-          grep -F "Status        valid" "$KI_ROOT/ki-diag.txt"
+          ki manage diag | tee "$KI_ROOT/ki-diag.txt"
+          grep -F "Status: valid" "$KI_ROOT/ki-diag.txt"
           ki harness list | grep -E '^knowledgeislands/ki-agentic-harness[[:space:]]'
           {
             echo "KI_CLI_INSTALL_DIR=$KI_CLI_INSTALL_DIR"
