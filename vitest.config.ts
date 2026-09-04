@@ -11,6 +11,7 @@ export default defineConfig({
     // build their own Config (or call loadConfig with an explicit env object).
     coverage: {
       provider: 'v8',
+      reportsDirectory: 'reports/coverage',
       reporter: ['text', 'lcov', 'html'],
       include: ['src/**/*.ts'],
       exclude: [
