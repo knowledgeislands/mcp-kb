@@ -44,7 +44,7 @@ jobs:
           touch "$HOME/.claude/projects/$project_key/memory/MEMORY.md"
           ki manage diag | tee "$KI_ROOT/ki-diag.txt"
           grep -F "Status: valid" "$KI_ROOT/ki-diag.txt"
-          ki harness list | grep -E '^knowledgeislands/ki-agentic-harness[[:space:]]'
+          ki harness list | grep -F 'knowledgeislands/ki-agentic-harness'
           {
             echo "KI_CLI_INSTALL_DIR=$KI_CLI_INSTALL_DIR"
             echo "KI_MAN_INSTALL_DIR=$KI_MAN_INSTALL_DIR"
